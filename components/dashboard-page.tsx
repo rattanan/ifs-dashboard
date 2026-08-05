@@ -35,18 +35,20 @@ type Tone = {
   border: string;
   fg: string;
   muted: string;
+  accent: string;
+  soft: string;
   palette: string[];
 };
 
 const tones: Record<ToneKey, Tone> = {
-  cyan: { bg: "#0797c2", border: "rgba(255,255,255,.28)", fg: "#ffffff", muted: "rgba(255,255,255,.74)", palette: ["#ffffff", "#b8e85c", "#72d9f1", "#ffd166", "#f7a8d8"] },
-  blue: { bg: "#087eaf", border: "rgba(255,255,255,.28)", fg: "#ffffff", muted: "rgba(255,255,255,.74)", palette: ["#ffffff", "#9ed04a", "#66d3ef", "#ffd166", "#d8b4fe"] },
-  green: { bg: "#279532", border: "rgba(255,255,255,.30)", fg: "#ffffff", muted: "rgba(255,255,255,.76)", palette: ["#ffffff", "#bfe875", "#7de3a4", "#ffe08a", "#d8b4fe"] },
-  lime: { bg: "#96c435", border: "rgba(255,255,255,.36)", fg: "#ffffff", muted: "rgba(255,255,255,.82)", palette: ["#ffffff", "#166534", "#075985", "#7c3aed", "#f97316"] },
-  purple: { bg: "#82458f", border: "rgba(255,255,255,.30)", fg: "#ffffff", muted: "rgba(255,255,255,.78)", palette: ["#ffffff", "#d5f26c", "#65d6f2", "#ffd166", "#fca5a5"] },
-  magenta: { bg: "#c6006f", border: "rgba(255,255,255,.34)", fg: "#ffffff", muted: "rgba(255,255,255,.82)", palette: ["#ffffff", "#b8e85c", "#66d3ef", "#ffd166", "#d8b4fe"] },
-  teal: { bg: "#0d9dc7", border: "rgba(255,255,255,.30)", fg: "#ffffff", muted: "rgba(255,255,255,.78)", palette: ["#ffffff", "#b7e35e", "#fbd38d", "#c4b5fd", "#fca5a5"] },
-  slate: { bg: "#4c4b50", border: "rgba(255,255,255,.28)", fg: "#ffffff", muted: "rgba(255,255,255,.74)", palette: ["#ffffff", "#b8e85c", "#73d8f0", "#ffd166", "#d8b4fe"] },
+  cyan: { bg: "#ffffff", border: "#dbeafe", fg: "#17346b", muted: "#64748b", accent: "#0d9dc7", soft: "#ecfeff", palette: ["#0d9dc7", "#1675dc", "#8d3b91", "#279532", "#f59e0b"] },
+  blue: { bg: "#ffffff", border: "#dbeafe", fg: "#17346b", muted: "#64748b", accent: "#1675dc", soft: "#eff6ff", palette: ["#1675dc", "#0d9dc7", "#8d3b91", "#279532", "#f59e0b"] },
+  green: { bg: "#ffffff", border: "#dcfce7", fg: "#17346b", muted: "#64748b", accent: "#279532", soft: "#f0fdf4", palette: ["#279532", "#0d9dc7", "#8d3b91", "#1675dc", "#f59e0b"] },
+  lime: { bg: "#ffffff", border: "#ecfccb", fg: "#17346b", muted: "#64748b", accent: "#84a72c", soft: "#f7fee7", palette: ["#84a72c", "#279532", "#0d9dc7", "#8d3b91", "#f59e0b"] },
+  purple: { bg: "#ffffff", border: "#ede9fe", fg: "#17346b", muted: "#64748b", accent: "#8d3b91", soft: "#faf5ff", palette: ["#8d3b91", "#1675dc", "#c6006f", "#0d9dc7", "#279532"] },
+  magenta: { bg: "#ffffff", border: "#fce7f3", fg: "#17346b", muted: "#64748b", accent: "#c6006f", soft: "#fdf2f8", palette: ["#c6006f", "#8d3b91", "#1675dc", "#0d9dc7", "#279532"] },
+  teal: { bg: "#ffffff", border: "#cffafe", fg: "#17346b", muted: "#64748b", accent: "#0d9dc7", soft: "#ecfeff", palette: ["#0d9dc7", "#279532", "#1675dc", "#8d3b91", "#f59e0b"] },
+  slate: { bg: "#ffffff", border: "#e2e8f0", fg: "#17346b", muted: "#64748b", accent: "#475569", soft: "#f8fafc", palette: ["#475569", "#1675dc", "#8d3b91", "#0d9dc7", "#279532"] },
 };
 
 const themes: Record<DashboardSlug, { accent: string; icon: string; Icon: LucideIcon; defaultTone: ToneKey }> = {
@@ -124,25 +126,25 @@ function toneForMetric(metric: MetricResult, dashboard: DashboardSlug): Tone {
 function MetricTable({ rows, caption, compact = false, tone }: { rows: Record<string, unknown>[]; caption: string; compact?: boolean; tone?: Tone }) {
   const columns = rows.length ? Object.keys(rows[0]) : [];
   const visible = compact ? rows.slice(0, 6) : rows;
-  const borderColor = tone?.border ?? "#e2e8f0";
+  const borderColor = "#e2e8f0";
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[620px] text-left text-[11px]" style={{ color: tone?.fg ?? "#334155" }}>
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="w-full min-w-[620px] text-left text-[11px] text-slate-700">
         <caption className="sr-only">{caption}</caption>
         <thead>
-          <tr className="border-y text-[10px] font-bold" style={{ borderColor, backgroundColor: tone ? "rgba(0,0,0,.13)" : "#f8fafc", color: tone?.fg ?? "#17346b" }}>
+          <tr className="border-y bg-[#17346b] text-[10px] font-bold text-white" style={{ borderColor }}>
             {columns.map((column) => <th key={column} scope="col" className="whitespace-nowrap px-2.5 py-2">{column}</th>)}
           </tr>
         </thead>
         <tbody>
           {visible.map((row, index) => (
-            <tr key={index} className="border-b transition hover:bg-white/10" style={{ borderColor }}>
+            <tr key={index} className="border-b transition even:bg-slate-50/70 hover:bg-blue-50/70" style={{ borderColor }}>
               {columns.map((column) => <td key={column} className="max-w-56 truncate whitespace-nowrap px-2.5 py-2">{valueOf(row[column])}</td>)}
             </tr>
           ))}
         </tbody>
       </table>
-      {!rows.length && <p className="grid min-h-32 place-items-center text-xs" style={{ color: tone?.muted ?? "#94a3b8" }}>ไม่พบข้อมูลตามตัวกรองนี้</p>}
+      {!rows.length && <p className="grid min-h-32 place-items-center text-xs text-slate-400">ไม่พบข้อมูลตามตัวกรองนี้</p>}
     </div>
   );
 }
@@ -151,13 +153,13 @@ function chartOption(metric: MetricResult, tone: Tone): EChartsOption {
   const rows = metric.series ?? [];
   const labels = rows.map((row) => String(row.label ?? "ไม่ระบุ"));
   const values = rows.map((row) => Number(row.value ?? 0));
-  const axis = { color: tone.fg, fontSize: 9 };
-  const splitLine = { lineStyle: { color: tone.border } };
+  const axis = { color: "#64748b", fontSize: 9 };
+  const splitLine = { lineStyle: { color: "#e2e8f0" } };
   const base: EChartsOption = {
     color: tone.palette,
     animationDuration: 300,
-    textStyle: { fontFamily: "Noto Sans Thai, Tahoma, sans-serif", fontSize: 10, color: tone.fg },
-    tooltip: { trigger: "axis", backgroundColor: "rgba(8,15,31,.94)", borderColor: tone.border, textStyle: { color: "#fff", fontSize: 10 } },
+    textStyle: { fontFamily: "Noto Sans Thai, Tahoma, sans-serif", fontSize: 10, color: "#17346b" },
+    tooltip: { trigger: "axis", backgroundColor: "rgba(8,15,31,.94)", borderColor: "#334155", textStyle: { color: "#fff", fontSize: 10 } },
     grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
   };
 
@@ -174,7 +176,7 @@ function chartOption(metric: MetricResult, tone: Tone): EChartsOption {
         max: 100,
         center: ["50%", "58%"],
         radius: "82%",
-        axisLine: { lineStyle: { width: 22, color: [[value / 100, tone.palette[1]], [1, "rgba(255,255,255,.18)"]] } },
+        axisLine: { lineStyle: { width: 22, color: [[value / 100, tone.accent], [1, "#e2e8f0"]] } },
         pointer: { show: false },
         axisTick: { show: false },
         splitLine: { show: false },
@@ -188,9 +190,9 @@ function chartOption(metric: MetricResult, tone: Tone): EChartsOption {
   if (metric.kind === "donut") {
     return {
       ...base,
-      tooltip: { trigger: "item", backgroundColor: "rgba(8,15,31,.94)", borderColor: tone.border, textStyle: { color: "#fff", fontSize: 10 } },
-      legend: { bottom: 0, type: "scroll", itemWidth: 8, itemHeight: 8, textStyle: { color: tone.fg, fontSize: 9 } },
-      series: [{ type: "pie", radius: ["45%", "71%"], center: ["50%", "43%"], itemStyle: { borderColor: tone.bg, borderWidth: 2 }, label: { show: values.length <= 5, color: tone.fg, fontSize: 9 }, data: rows.map((row) => ({ name: String(row.label ?? "ไม่ระบุ"), value: Number(row.value ?? 0) })) }],
+      tooltip: { trigger: "item", backgroundColor: "rgba(8,15,31,.94)", borderColor: "#334155", textStyle: { color: "#fff", fontSize: 10 } },
+      legend: { bottom: 0, type: "scroll", itemWidth: 8, itemHeight: 8, textStyle: { color: "#475569", fontSize: 9 } },
+      series: [{ type: "pie", radius: ["45%", "71%"], center: ["50%", "43%"], itemStyle: { borderColor: "#ffffff", borderWidth: 3 }, label: { show: values.length <= 5, color: "#17346b", fontSize: 9 }, data: rows.map((row) => ({ name: String(row.label ?? "ไม่ระบุ"), value: Number(row.value ?? 0) })) }],
     };
   }
 
@@ -199,7 +201,7 @@ function chartOption(metric: MetricResult, tone: Tone): EChartsOption {
       ...base,
       xAxis: { type: "category", boundaryGap: false, data: labels, axisLine: { lineStyle: { color: tone.border } }, axisLabel: { ...axis, interval: 0 } },
       yAxis: { type: "value", axisLabel: axis, splitLine },
-      series: [{ type: "line", data: values, smooth: true, symbolSize: 6, areaStyle: { opacity: 0.2 }, lineStyle: { width: 3, color: tone.palette[1] }, itemStyle: { color: tone.palette[1] } }],
+      series: [{ type: "line", data: values, smooth: true, symbolSize: 6, areaStyle: { opacity: 0.12 }, lineStyle: { width: 3, color: tone.accent }, itemStyle: { color: tone.accent } }],
     };
   }
 
@@ -210,7 +212,7 @@ function chartOption(metric: MetricResult, tone: Tone): EChartsOption {
       grid: { left: 8, right: 24, top: 8, bottom: 8, containLabel: true },
       xAxis: { type: "value", axisLabel: axis, splitLine },
       yAxis: { type: "category", inverse: true, data: labels, axisLabel: { ...axis, width: 120, overflow: "truncate" } },
-      series: [{ type: "bar", data: values, barMaxWidth: 18, itemStyle: { color: tone.palette[1], borderRadius: 0 }, label: { show: true, position: "right", color: tone.fg, fontSize: 9 } }],
+      series: [{ type: "bar", data: values, barMaxWidth: 18, itemStyle: { color: tone.accent, borderRadius: [0, 5, 5, 0] }, label: { show: true, position: "right", color: tone.fg, fontSize: 9 } }],
     };
   }
 
@@ -218,7 +220,7 @@ function chartOption(metric: MetricResult, tone: Tone): EChartsOption {
     ...base,
     xAxis: { type: "category", data: labels, axisLine: { lineStyle: { color: tone.border } }, axisLabel: { ...axis, interval: 0, rotate: labels.length > 5 ? 22 : 0, overflow: "truncate", width: 74 } },
     yAxis: { type: "value", axisLabel: axis, splitLine },
-    series: [{ type: "bar", data: values, barMaxWidth: 32, itemStyle: { color: tone.palette[1], borderRadius: 0 }, label: { show: values.length < 7, position: "top", color: tone.fg, fontSize: 9 } }],
+    series: [{ type: "bar", data: values, barMaxWidth: 32, itemStyle: { color: tone.accent, borderRadius: [5, 5, 0, 0] }, label: { show: values.length < 7, position: "top", color: tone.fg, fontSize: 9 } }],
   };
 }
 
@@ -260,19 +262,20 @@ function makeKpis(metrics: MetricResult[], dashboard: DashboardSlug): KpiItem[] 
 function KpiStrip({ items }: { items: KpiItem[] }) {
   if (!items.length) return null;
   return (
-    <section aria-label="ตัวชี้วัดสำคัญ" className="grid gap-px overflow-hidden border border-white bg-white/80 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <section aria-label="ตัวชี้วัดสำคัญ" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
       {items.map((item, index) => {
         const Icon = metricIcons[index % metricIcons.length];
         return (
-          <div key={item.id} className="min-w-0 p-3" style={{ backgroundColor: item.tone.bg, color: item.tone.fg }}>
+          <div key={item.id} className="relative min-w-0 overflow-hidden rounded-2xl border p-4 shadow-[0_8px_30px_rgba(15,23,42,.06)]" style={{ backgroundColor: item.tone.bg, borderColor: item.tone.border, color: item.tone.fg }}>
+            <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: item.tone.accent }} />
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate text-[11px] font-bold" title={item.label}>{item.label}</p>
-                <p className="mt-2 truncate text-[28px] font-bold leading-none">{compactValue(item.value)} <span className="text-[10px] font-medium" style={{ color: item.tone.muted }}>{item.unit}</span></p>
+                <p className="mt-3 truncate text-[28px] font-bold leading-none" style={{ color: item.tone.accent }}>{compactValue(item.value)} <span className="text-[10px] font-medium text-slate-400">{item.unit}</span></p>
               </div>
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/15"><Icon className="size-4" /></span>
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: item.tone.soft, color: item.tone.accent }}><Icon className="size-4" /></span>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2"><p className="text-[9px] font-medium" style={{ color: item.tone.muted }}>{item.stale ? "ข้อมูลสำรองล่าสุด" : "ข้อมูลจาก Oracle IFSAPP"}</p><Sparkline color={item.tone.fg} /></div>
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2"><p className="text-[9px] font-medium" style={{ color: item.tone.muted }}>{item.stale ? "ข้อมูลสำรองล่าสุด" : "ข้อมูลจาก Oracle IFSAPP"}</p><Sparkline color={item.tone.accent} /></div>
           </div>
         );
       })}
@@ -288,19 +291,19 @@ function MetricCard({ metric, dashboard }: { metric: MetricResult; dashboard: Da
 
   return (
     <Dialog.Root>
-      <section className={`min-w-0 overflow-hidden border border-white/90 shadow-[0_2px_8px_rgba(15,23,42,.14)] ${span}`} style={{ backgroundColor: tone.bg, color: tone.fg }}>
-        <header className="flex min-h-12 items-start justify-between gap-2 border-b px-3 py-2" style={{ borderColor: tone.border }}>
-          <div className="min-w-0"><h2 className="truncate text-[13px] font-bold" title={metric.title}>{metric.title}</h2><p className="mt-0.5 truncate text-[9px]" style={{ color: tone.muted }}>{metric.description}</p></div>
+      <section className={`min-w-0 overflow-hidden rounded-2xl border shadow-[0_8px_30px_rgba(15,23,42,.06)] ${span}`} style={{ backgroundColor: tone.bg, borderColor: tone.border, color: tone.fg }}>
+        <header className="flex min-h-16 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5">
+          <div className="flex min-w-0 items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: tone.soft, color: tone.accent }}><BarChart3 className="size-4" /></span><div className="min-w-0"><h2 className="truncate text-sm font-bold" title={metric.title}>{metric.title}</h2><p className="mt-0.5 truncate text-[10px]" style={{ color: tone.muted }}>{metric.description}</p></div></div>
           {metric.stale && <Badge className="shrink-0 rounded-sm bg-amber-200 px-1.5 py-0.5 text-[9px] text-amber-950">Stale</Badge>}
         </header>
-        <div className="px-3 pb-2.5 pt-1">
-          {metric.error && <div className="mb-2 flex items-start gap-2 border border-rose-200/60 bg-rose-950/35 p-2 text-[10px] text-rose-50"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{metric.error}</span></div>}
+        <div className="p-4 sm:p-5">
+          {metric.error && <div className="mb-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-[10px] text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{metric.error}</span></div>}
           {!sourceRows.length && !metric.error && <div className="grid min-h-32 place-items-center text-xs" style={{ color: tone.muted }}>ไม่พบข้อมูลตามตัวกรองนี้</div>}
-          {metric.kind === "table" && <div className={chartHeight}><MetricTable rows={metric.rows ?? []} caption={metric.title} compact tone={tone} /></div>}
-          {metric.kind === "summary" && <div className="grid grid-cols-2 gap-px py-2">{Object.entries(metric.summary ?? {}).map(([key, value]) => <div key={key} className="p-2" style={{ backgroundColor: "rgba(0,0,0,.12)" }}><p className="truncate text-[9px] font-semibold uppercase" style={{ color: tone.muted }}>{summaryLabels[key] ?? key}</p><p className="mt-1 text-lg font-bold">{compactValue(value)}</p></div>)}</div>}
-          {metric.kind === "kpi" && <div className="my-2 border border-white/20 p-4" style={{ backgroundColor: "rgba(0,0,0,.12)" }}><p className="text-4xl font-bold">{compactValue(metric.summary?.value)} <span className="text-xs font-medium" style={{ color: tone.muted }}>{metric.valueLabel}</span></p><p className="mt-1 text-[10px]" style={{ color: tone.muted }}>อัปเดต {formatDateTime(metric.generatedAt)}</p></div>}
+          {metric.kind === "table" && <div className={chartHeight}><MetricTable rows={metric.rows ?? []} caption={metric.title} compact /></div>}
+          {metric.kind === "summary" && <div className="grid grid-cols-2 gap-2 py-2">{Object.entries(metric.summary ?? {}).map(([key, value]) => <div key={key} className="rounded-xl p-3" style={{ backgroundColor: tone.soft }}><p className="truncate text-[9px] font-semibold uppercase" style={{ color: tone.muted }}>{summaryLabels[key] ?? key}</p><p className="mt-1 text-lg font-bold" style={{ color: tone.accent }}>{compactValue(value)}</p></div>)}</div>}
+          {metric.kind === "kpi" && <div className="my-2 rounded-xl border p-4" style={{ backgroundColor: tone.soft, borderColor: tone.border }}><p className="text-4xl font-bold" style={{ color: tone.accent }}>{compactValue(metric.summary?.value)} <span className="text-xs font-medium text-slate-500">{metric.valueLabel}</span></p><p className="mt-1 text-[10px]" style={{ color: tone.muted }}>อัปเดต {formatDateTime(metric.generatedAt)}</p></div>}
           {metric.kind !== "table" && metric.kind !== "summary" && metric.kind !== "kpi" && <><EChart option={chartOption(metric, tone)} label={`กราฟ ${metric.title}`} className={chartHeight} /><div className="sr-only"><MetricTable rows={metric.series ?? []} caption={`ข้อมูลกราฟ ${metric.title}`} /></div></>}
-          {sourceRows.length > 0 && <Dialog.Trigger asChild><button type="button" className="mt-1 min-h-9 text-[10px] font-semibold underline-offset-2 hover:underline" style={{ color: tone.fg }}>ดูรายละเอียด ({sourceRows.length} รายการ) →</button></Dialog.Trigger>}
+          {sourceRows.length > 0 && <Dialog.Trigger asChild><button type="button" className="mt-2 min-h-9 text-[10px] font-semibold underline-offset-2 hover:underline" style={{ color: tone.accent }}>ดูรายละเอียด ({sourceRows.length} รายการ) →</button></Dialog.Trigger>}
         </div>
       </section>
       <Dialog.Portal>
