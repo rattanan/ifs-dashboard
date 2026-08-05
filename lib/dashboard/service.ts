@@ -42,6 +42,8 @@ export async function loadMetric(
       title: metric.title,
       description: metric.description,
       kind: metric.kind,
+      size: metric.size,
+      valueLabel: metric.valueLabel,
       generatedAt: new Date().toISOString(),
       filters,
       summary: metric.kind === "kpi" || metric.kind === "summary" || metric.kind === "gauge" ? rows[0] : undefined,

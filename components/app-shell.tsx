@@ -9,6 +9,7 @@ import {
   Newspaper,
   PlaneTakeoff,
   ReceiptText,
+  ShieldCheck,
   Settings,
   ShoppingCart,
   Wrench,
@@ -34,7 +35,7 @@ const navigation = [
 function Navigation({ user, mobile = false }: { user: SessionUser; mobile?: boolean }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="เมนูหลัก" className={cn("space-y-1", mobile && "mt-8")}>
+    <nav aria-label="เมนูหลัก" className={cn("space-y-1", mobile && "mt-7")}>
       {navigation.map((item) => {
         const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
         const Icon = item.icon;
@@ -43,8 +44,8 @@ function Navigation({ user, mobile = false }: { user: SessionUser; mobile?: bool
             key={item.href}
             href={item.href}
             className={cn(
-              "group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400",
-              active ? "bg-white/12 text-white shadow-sm" : "text-slate-300 hover:bg-white/[0.07] hover:text-white",
+              "group flex min-h-11 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400",
+              active ? "bg-gradient-to-r from-sky-600 to-cyan-600 text-white shadow-md" : "text-slate-200 hover:bg-white/[0.07] hover:text-white",
             )}
           >
             <Icon className={cn("size-[18px]", active ? "text-sky-300" : "text-slate-400 group-hover:text-sky-300")} />
@@ -52,11 +53,11 @@ function Navigation({ user, mobile = false }: { user: SessionUser; mobile?: bool
           </Link>
         );
       })}
-      <Link href="/content" className="group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/[0.07] hover:text-white">
+      <Link href="/content" className="group flex min-h-11 items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-slate-200 transition hover:bg-white/[0.07] hover:text-white">
         <Newspaper className="size-[18px] text-slate-400 group-hover:text-sky-300" /> ข่าวและบทความ
       </Link>
       {user.role === "ADMIN" && (
-        <Link href="/admin/users" className={cn("group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition", pathname.startsWith("/admin") ? "bg-white/12 text-white" : "text-slate-300 hover:bg-white/[0.07] hover:text-white")}>
+        <Link href="/admin/users" className={cn("group flex min-h-11 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition", pathname.startsWith("/admin") ? "bg-gradient-to-r from-sky-600 to-cyan-600 text-white" : "text-slate-200 hover:bg-white/[0.07] hover:text-white")}>
           <Settings className="size-[18px] text-slate-400 group-hover:text-sky-300" /> ผู้ดูแลระบบ
         </Link>
       )}
@@ -66,7 +67,7 @@ function Navigation({ user, mobile = false }: { user: SessionUser; mobile?: bool
 
 function UserPanel({ user }: { user: SessionUser }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
+    <div className="rounded-lg border border-sky-300/20 bg-sky-950/40 p-3">
       <div className="flex items-center gap-3">
         <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-sky-400 to-[#8d3b91] text-sm font-bold text-white">{user.displayName.slice(0, 1)}</span>
         <div className="min-w-0 flex-1">
@@ -87,9 +88,12 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
   return (
     <div className="min-h-screen bg-slate-50">
       <a href="#main-content" className="sr-only z-[100] rounded-lg bg-white px-4 py-2 focus:not-sr-only focus:fixed focus:left-4 focus:top-4">ข้ามไปยังเนื้อหา</a>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-[#091b2d] p-4 lg:flex">
-        <BrandMark className="px-1 py-2" />
-        <div className="mt-8 flex-1"><Navigation user={user} /></div>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[220px] flex-col overflow-hidden bg-[#031d3b] p-3 lg:flex">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-80 bg-[radial-gradient(circle_at_40%_90%,rgba(14,165,233,.22),transparent_55%)]" />
+        <BrandMark className="relative border-b border-white/10 px-1 pb-4 pt-2" />
+        <p className="relative mb-2 mt-5 px-3 text-[9px] font-bold uppercase tracking-[.18em] text-sky-400">Operations center</p>
+        <div className="relative flex-1"><Navigation user={user} /></div>
+        <div className="relative mb-2 rounded-lg border border-white/10 bg-white/[.035] p-3 text-[10px] leading-5 text-slate-300"><p className="flex items-center gap-2 font-semibold text-white"><ShieldCheck className="size-4 text-emerald-400"/> ปลอดภัย & เชื่อถือได้</p><p className="mt-1">เชื่อมต่อ Oracle IFSAPP<br/>แบบอ่านข้อมูลเท่านั้น</p><p className="mt-1 text-emerald-400">● สถานะระบบปกติ</p></div>
         <UserPanel user={user} />
       </aside>
 
@@ -112,7 +116,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         </Dialog.Root>
       </header>
 
-      <div className="lg:pl-64">
+      <div className="lg:pl-[220px]">
         <main id="main-content" className="min-h-screen pb-24 lg:pb-8">{children}</main>
       </div>
 

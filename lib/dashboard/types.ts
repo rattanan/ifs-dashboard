@@ -32,6 +32,8 @@ export interface MetricResult {
   title: string;
   description: string;
   kind: MetricKind;
+  size?: "sm" | "md" | "lg" | "wide";
+  valueLabel?: string;
   generatedAt: string;
   filters: DashboardFilters;
   summary?: Record<string, number | string | null>;

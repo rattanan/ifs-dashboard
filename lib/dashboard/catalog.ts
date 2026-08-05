@@ -130,6 +130,77 @@ const maintenance: MetricDefinition[] = [
         AND OPERATIONAL_STATUS <> 'Scrapped' AND SUP_MCH_CODE NOT IN ('0000','XXXX')
       ORDER BY CF$_C_REMAINHR FETCH FIRST 20 ROWS ONLY`,
   },
+  {
+    id: "maintenance.aircraft-list",
+    dashboard: "maintenance",
+    title: "รายการอากาศยานตามสถานะ",
+    description: "ทะเบียนอากาศยาน แบบ หมายเลขเครื่อง และสถานะความพร้อม",
+    sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
+    sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT MCH_CODE AS "Aircraft", MCH_NAME AS "Description", TYPE AS "Type",
+        SERIAL_NO AS "Serial No", CF$_C_CONDITION AS "Condition"
+      FROM EQUIPMENT_FUNCTIONAL_CFV
+      WHERE MCH_TYPE = 'AIRCRAFT' AND CONTRACT = :site
+      ORDER BY TYPE, MCH_CODE FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.wo-by-aircraft",
+    dashboard: "maintenance",
+    title: "งานรอดำเนินการตามอากาศยาน",
+    description: "WO ที่ยังเปิด แยกตามทะเบียนอากาศยาน",
+    sourceElementId: "9e5e5e5a-93e8-46f6-93d2-79582c4d31c6",
+    sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
+    allowedFilters: ["site"], kind: "bar", size: "lg",
+    sql: `SELECT NVL(MCH_CODE, 'ไม่ระบุ') AS "label", COUNT(WO_NO) AS "value"
+      FROM ACTIVE_SEPARATE_OVERVIEW
+      WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
+      GROUP BY MCH_CODE ORDER BY COUNT(WO_NO) DESC FETCH FIRST 12 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.wo-packages",
+    dashboard: "maintenance",
+    title: "WO Package แยกตามอากาศยาน",
+    description: "ชุดงานซ่อมที่มี Work Order เชื่อมโยงและยังไม่ปิด",
+    sourceElementId: "1f4fb9fd-273d-403d-8af8-76a36f101d5a",
+    sourceDataSourceId: "e076d552-6f9f-4f1d-8a2e-6dcb5ee251bf",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT MCH_CODE AS "Aircraft", WO_NO AS "WO No", ERR_DESCR AS "Description", STATE AS "Status"
+      FROM ACTIVE_SEPARATE_ELS_VIEW
+      WHERE CONTRACT = :site AND WORK_ORDER_CONNECTION_API.Has_Connection_Down(WO_NO) = 'TRUE'
+        AND STATE NOT IN ('Finished','Cancelled')
+      ORDER BY MCH_CODE, WO_NO FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.grounded-list",
+    dashboard: "maintenance",
+    title: "อากาศยานหยุดบินเกิน 7 วัน",
+    description: "รายละเอียดการวัด TSN ล่าสุดของอากาศยานที่เกินเกณฑ์",
+    sourceElementId: "6a2a808c-3c48-45cb-b5ff-9d379d5d8e5f",
+    sourceDataSourceId: "a51d1ed5-6da4-4339-809e-0dce92c71699",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT MCH_CODE AS "Aircraft", REG_DATE AS "Last Flight", MEASURED_VALUE AS "TSN",
+        ROUND(SYSDATE - REG_DATE, 2) AS "Grounded Days"
+      FROM EQUIP_OBJECT_MEAS_GROUP_CFV
+      WHERE SYSDATE - REG_DATE > 7 AND TEST_POINT_ID = 'TSN' AND CF$_C_MCH_TYPE = 'AIRCRAFT'
+        AND CONTRACT = :site AND EQUIPMENT_OBJECT_API.Get_OPERATIONAL_STATUS(CONTRACT, MCH_CODE) <> 'Scrapped'
+      ORDER BY REG_DATE FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.pm-calendar",
+    dashboard: "maintenance",
+    title: "แผน PM ภายใน 6 เดือน",
+    description: "กำหนดการ PM แบบ Calendar พร้อม Action และ WO",
+    sourceElementId: "04e0fb2b-2bc7-4bf4-913b-ef38e95e0ab3",
+    sourceDataSourceId: "1a10310c-bf94-400e-80c0-65ab768021c8",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT PM_NO AS "PM No", PM_ACTION_CALENDAR_PLAN_API.Get_Mch_Code(PM_NO, PM_REVISION) AS "Aircraft",
+        PLANNED_DATE AS "Planned Date", CF$_C_ACTION AS "Action", WO_NO AS "WO No"
+      FROM PM_ACTION_CALENDAR_PLAN_CFV
+      WHERE PLANNED_DATE BETWEEN SYSDATE AND ADD_MONTHS(SYSDATE, 6)
+        AND GENERATION_TYPE = 'Calendar' AND PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) = :site
+      ORDER BY PLANNED_DATE FETCH FIRST 30 ROWS ONLY`,
+  },
 ];
 
 const budget: MetricDefinition[] = [
@@ -242,6 +313,32 @@ const budget: MetricDefinition[] = [
       FROM PROJ_CON_DET_SUM_COST_PROJECT
       WHERE (:projectId IS NULL OR PROJECT_ID = UPPER(:projectId))
       GROUP BY PROJECT_ID ORDER BY PROJECT_ID FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "budget.balance-by-project",
+    dashboard: "budget",
+    title: "งบคงเหลือตามโครงการ",
+    description: "เปรียบเทียบงบคงเหลือของโครงการที่มีมูลค่าสูง",
+    sourceElementId: "f8fd7504-a684-480c-b5a4-3670d10c67be",
+    sourceDataSourceId: "8183cea7-3fbe-432d-9477-72daf540c389",
+    allowedFilters: ["projectId"], kind: "bar", size: "lg",
+    sql: `SELECT PROJECT_ID AS "label", ROUND(SUM(ESTIMATED - ACTUAL), 2) AS "value"
+      FROM PROJ_CON_DET_SUM_COST_PROJECT
+      WHERE (:projectId IS NULL OR PROJECT_ID = UPPER(:projectId))
+      GROUP BY PROJECT_ID ORDER BY SUM(ESTIMATED - ACTUAL) DESC FETCH FIRST 10 ROWS ONLY`,
+  },
+  {
+    id: "budget.utilization-by-project",
+    dashboard: "budget",
+    title: "Budget Utilization รายโครงการ",
+    description: "สัดส่วนใช้จริงเทียบงบประมาณของแต่ละโครงการ",
+    sourceElementId: "6192f161-284c-4688-a467-f60341092d3d",
+    sourceDataSourceId: "8183cea7-3fbe-432d-9477-72daf540c389",
+    allowedFilters: ["projectId"], kind: "bar", size: "lg",
+    sql: `SELECT PROJECT_ID AS "label", ROUND(CASE WHEN SUM(ESTIMATED)=0 THEN 0 ELSE SUM(ACTUAL)*100/SUM(ESTIMATED) END, 2) AS "value"
+      FROM PROJ_CON_DET_SUM_COST_PROJECT
+      WHERE (:projectId IS NULL OR PROJECT_ID = UPPER(:projectId))
+      GROUP BY PROJECT_ID ORDER BY 2 DESC FETCH FIRST 10 ROWS ONLY`,
   },
 ];
 
@@ -362,6 +459,34 @@ const inventory: MetricDefinition[] = [
       FROM RECEIPT_INFO WHERE CONTRACT = :site
         AND STATE IN ('To be Inspected','To be Received')
       ORDER BY SOURCE_REF1 FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "inventory.mr-lines",
+    dashboard: "inventory",
+    title: "MR Line รอคลังดำเนินการ",
+    description: "รายละเอียดใบเบิกพัสดุที่ Released, Reserved หรือส่งบางส่วน",
+    sourceElementId: "10d7592b-6454-40a7-adc4-1744fa2dce48",
+    sourceDataSourceId: "fa1d6bc1-d977-480e-8925-112a883429b1",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT ORDER_NO AS "MR", LINE_NO AS "Line", PART_NO AS "Part No", QTY_DUE AS "Qty",
+        QTY_ASSIGNED AS "Assigned", QTY_SHIPPED AS "Issued", DUE_DATE AS "Due Date", STATUS_CODE AS "Status"
+      FROM MATERIAL_REQUIS_LINE_CFV WHERE CONTRACT = :site
+        AND STATUS_CODE IN ('Released','Reserved','Partially Delivered')
+      ORDER BY DUE_DATE FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "inventory.turn-in-lines",
+    dashboard: "inventory",
+    title: "Turn-in จาก Work Order",
+    description: "รายการพัสดุที่ต้องส่งคืนคลังและยังคืนไม่ครบ",
+    sourceElementId: "fa9fbd2d-f573-45f3-8fbf-c44f9b2310b7",
+    sourceDataSourceId: "efa7afbf-240a-4d3d-9a0d-ef7fe7b0cda6",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT WO_NO AS "WO No", LINE_NO AS "Line", PART_NO AS "Part No", QTY_TO_RETURN AS "To Return",
+        QTY_RETURNED AS "Returned", CF$_C_RETURN_STATUS AS "Status", CF$_C_PERSON_MANAGE AS "Owner"
+      FROM WORK_ORDER_RETURNS_UIV_CFV WHERE CONTRACT = :site AND CF$_C_RETURN_TYPE = 'Turn In'
+        AND QTY_TO_RETURN - QTY_RETURNED <> 0 AND CF$_STATE_WT <> 'Cancelled'
+      ORDER BY WO_NO FETCH FIRST 30 ROWS ONLY`,
   },
 ];
 
@@ -512,6 +637,48 @@ const procurement: MetricDefinition[] = [
       FROM MATERIAL_REQUIS_LINE_CFV WHERE CONTRACT = :site
         AND STATUS_CODE IN ('Released','Reserved','Partially Delivered')
       ORDER BY ORDER_NO, LINE_NO FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "procurement.rfq-lines",
+    dashboard: "procurement",
+    title: "RFQ ที่อยู่ระหว่างดำเนินการ",
+    description: "รายการ Request for Quotation ตามผู้ซื้อและสถานะ",
+    sourceElementId: "1eb9f4e0-84ae-4dd5-abd6-97010b3dd267",
+    sourceDataSourceId: "ce5272af-7fec-4101-b51e-fd52e61515a6",
+    allowedFilters: ["site", "buyer"], kind: "table", size: "wide",
+    sql: `SELECT INQUIRY_NO AS "RFQ", BUYER_CODE AS "Buyer", STATE AS "Status"
+      FROM INQUIRY_ORDER_CFV WHERE CONTRACT = :site AND STATE <> 'Cancelled'
+        AND BUYER_CODE LIKE NVL(:buyer, '%')
+      ORDER BY INQUIRY_NO FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "procurement.po-to-send",
+    dashboard: "procurement",
+    title: "Purchase Orders to Send",
+    description: "PO ที่อยู่ระหว่าง Planned, Released, Confirmed หรือ Stopped",
+    sourceElementId: "3ce67969-99ee-4f30-a3d0-5c4de94c81f3",
+    sourceDataSourceId: "27005b1d-43ec-44fb-8e42-2bb6b1c8f145",
+    allowedFilters: ["site", "buyer", "supplier"], kind: "table", size: "wide",
+    sql: `SELECT ORDER_NO AS "PO", BUYER_CODE AS "Buyer", VENDOR_NO AS "Supplier", OBJSTATE AS "Status"
+      FROM PURCHASE_ORDER WHERE CONTRACT = :site AND OBJSTATE IN ('Stopped','Confirmed','Released','Planned')
+        AND BUYER_CODE LIKE NVL(:buyer, '%') AND VENDOR_NO LIKE NVL(:supplier, '%')
+      ORDER BY ORDER_NO FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "procurement.delivery-analysis",
+    dashboard: "procurement",
+    title: "Delivery Order Analysis",
+    description: "จำนวนรายการส่งตรงเวลา ก่อนกำหนด และล่าช้า",
+    sourceElementId: "be27cc5d-2c58-4d47-b28d-464b724e1cec",
+    sourceDataSourceId: "7f922ebb-0d4e-4755-8114-d3d955550728",
+    allowedFilters: ["buyer", "supplier"], kind: "bar", size: "lg",
+    sql: `SELECT CASE WHEN COUNT_ON_TIME_ORDER_LINE = 1 THEN 'On time'
+        WHEN COUNT_EARLY_ORDER_LINE = 1 THEN 'Early' ELSE 'Late' END AS "label", COUNT(*) AS "value"
+      FROM PURCHASE_ORDER_LINE_DETAIL
+      WHERE STATE IN ('Arrived','Received','Closed')
+        AND PURCHASE_BUYER LIKE NVL(:buyer, '%') AND SUPPLIER LIKE NVL(:supplier, '%')
+      GROUP BY CASE WHEN COUNT_ON_TIME_ORDER_LINE = 1 THEN 'On time'
+        WHEN COUNT_EARLY_ORDER_LINE = 1 THEN 'Early' ELSE 'Late' END`,
   },
 ];
 

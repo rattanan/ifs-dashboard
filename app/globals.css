@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f8fb;
+  --background: #f7f9fc;
   --foreground: #0f172a;
   --navy: #0b1f33;
   --navy-soft: #173a5e;
@@ -31,6 +31,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, Arial, sans-serif;
+  font-size: 14px;
 }
 
 button,

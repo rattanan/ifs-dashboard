@@ -1,71 +1,41 @@
-import { ArrowRight, Boxes, ChevronRight, Plane, ReceiptText, ShoppingCart, Sparkles, Wrench } from "lucide-react";
+import { ArrowRight, Bell, Boxes, CheckCircle2, CircleGauge, Database, Grid2X2, Plane, ReceiptText, RefreshCw, ShoppingCart, Wrench } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/session";
 import { getPublishedContents } from "@/lib/content";
 import { formatDateTime } from "@/lib/utils";
 
 const dashboards = [
-  { href: "/dashboards/maintenance", title: "ช่างและวางแผนซ่อม", detail: "ความพร้อมอากาศยาน · WO · PM · MMR", icon: Wrench, color: "from-cyan-500 to-sky-700", glow: "bg-cyan-400" },
-  { href: "/dashboards/budget", title: "งบประมาณ", detail: "งบตั้งต้น · ใช้จริง · ผูกพัน · คงเหลือ", icon: ReceiptText, color: "from-indigo-600 to-violet-800", glow: "bg-indigo-400" },
-  { href: "/dashboards/inventory", title: "คลังพัสดุ", detail: "MR · รับเข้า · คงคลัง · อายุพัสดุ", icon: Boxes, color: "from-emerald-500 to-teal-800", glow: "bg-emerald-400" },
-  { href: "/dashboards/procurement", title: "จัดซื้อ จ้างซ่อม", detail: "RFQ · PR · PO · Supplier Performance", icon: ShoppingCart, color: "from-amber-500 to-[#8d3b91]", glow: "bg-amber-400" },
+  { href: "/dashboards/maintenance", number: "1", title: "แผนกช่างและวางแผนการซ่อม", detail: "การวางแผนและบริหารงานซ่อมบำรุง", icon: Wrench, accent: "#1675dc", soft: "bg-blue-50", button: "bg-blue-600", metrics: ["WO ที่เปิดอยู่", "ความพร้อมอากาศยาน"], values: ["41", "76%"] },
+  { href: "/dashboards/budget", number: "2", title: "แผนกงบประมาณ", detail: "งบประมาณและการควบคุมค่าใช้จ่าย", icon: ReceiptText, accent: "#07968f", soft: "bg-teal-50", button: "bg-teal-600", metrics: ["งบประมาณปีนี้", "ใช้ไปแล้ว"], values: ["10.00M", "61%"] },
+  { href: "/dashboards/inventory", number: "3", title: "แผนกคลังพัสดุ", detail: "บริหารจัดการวัสดุและคลังสินค้า", icon: Boxes, accent: "#284eb8", soft: "bg-indigo-50", button: "bg-indigo-700", metrics: ["MR Line", "PO รออนุมัติ"], values: ["16", "3"] },
+  { href: "/dashboards/procurement", number: "4", title: "แผนกจัดซื้อ จ้างซ่อม", detail: "จัดซื้อจัดจ้างและบริหารซัพพลายเออร์", icon: ShoppingCart, accent: "#78429c", soft: "bg-violet-50", button: "bg-violet-700", metrics: ["ใบขอราคา", "PO รอรับสินค้า"], values: ["4", "8"] },
 ];
 
 export default async function HomePage() {
   const [user, items] = await Promise.all([requireUser(), getPublishedContents(8)]);
   const pinned = items.find((item) => item.pinned) ?? items[0];
-  return (
-    <div className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-      <section className="relative overflow-hidden rounded-[28px] bg-[#0b1f33] px-5 py-8 text-white shadow-[0_24px_80px_rgba(15,23,42,0.15)] sm:px-8 lg:px-10 lg:py-10">
-        <div className="absolute right-[-5%] top-[-45%] size-96 rounded-full border-[54px] border-sky-400/10" />
-        <div className="absolute bottom-[-45%] left-[35%] size-80 rounded-full bg-[#8d3b91]/20 blur-3xl" />
-        <div className="relative z-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-          <div>
-            <Badge className="mb-5 bg-sky-400/15 text-sky-200"><Sparkles className="mr-1.5 size-3.5" /> Executive intelligence</Badge>
-            <p className="text-sm text-slate-300">สวัสดี {user.displayName}</p>
-            <h1 className="mt-2 max-w-3xl text-balance text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">มองเห็นทุกภารกิจ<br className="hidden sm:block" /> ตัดสินใจได้จากข้อมูลจริง</h1>
-            <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">รายงานผู้บริหารจาก IFS ERP ครอบคลุมงานซ่อม งบประมาณ คลังพัสดุ และการจัดซื้อ พร้อมผู้ช่วยอัจฉริยะสำหรับค้นหาคำตอบอย่างรวดเร็ว</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur">
-            <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-sky-400/15"><Plane className="size-5 text-sky-300" /></span><div><p className="text-xs text-slate-400">Oracle IFS UAT</p><p className="font-semibold">เชื่อมต่อแบบ Read only</p></div></div>
-            <div className="mt-5 grid grid-cols-3 gap-2 text-center"><div><p className="text-xl font-bold">4</p><p className="text-[10px] text-slate-400">Dashboard</p></div><div><p className="text-xl font-bold">2</p><p className="text-[10px] text-slate-400">Site</p></div><div><p className="text-xl font-bold">5m</p><p className="text-[10px] text-slate-400">Cache</p></div></div>
-          </div>
-        </div>
-      </section>
+  return <div className="px-3 py-3 sm:px-4 lg:px-5">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3"><div><h1 className="text-2xl font-bold text-[#0a2453] sm:text-3xl">TPAD IFSAPP Dashboard Center</h1><p className="text-xs text-slate-500">Oracle IFS Analytics Portal · กองบินตำรวจ</p></div><div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"><RefreshCw className="size-5 text-blue-600"/><div><p className="text-[11px] font-semibold text-[#17346b]">รีเฟรชข้อมูล</p><p className="text-[9px] text-slate-400">ล่าสุด 30 วินาทีที่แล้ว</p></div><span className="size-2 rounded-full bg-emerald-500"/><span className="ml-2 grid size-9 place-items-center rounded-full bg-indigo-600 font-bold text-white">{user.displayName.slice(0, 1)}</span><div className="hidden sm:block"><p className="text-[11px] font-bold text-slate-800">{user.displayName}</p><p className="text-[9px] text-slate-500">{user.role === "ADMIN" ? "Administrator" : "Read only"}</p></div></div></header>
 
-      {pinned && (
-        <Link href={`/content/${pinned.slug}`} className="mt-5 flex min-h-14 items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm transition hover:border-amber-300 hover:bg-amber-100/70 sm:px-5">
-          <Badge className="shrink-0 bg-amber-500 text-white">ประกาศ</Badge><span className="min-w-0 flex-1 truncate font-semibold text-amber-950">{pinned.title}</span><ChevronRight className="size-4 shrink-0 text-amber-700" />
-        </Link>
-      )}
+    <section className="mt-3 grid gap-2 xl:grid-cols-[2.15fr_repeat(4,1fr)]">
+      <div className="relative min-h-40 overflow-hidden rounded-lg border border-indigo-100 bg-gradient-to-r from-[#eef0ff] via-white to-[#eaf4ff] p-5"><div className="absolute -right-4 bottom-[-38px] text-sky-700/10"><Plane className="size-56"/></div><div className="relative flex items-start gap-4"><span className="grid size-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-violet-700 to-indigo-500 text-white"><CircleGauge className="size-7"/></span><div><h2 className="text-xl font-bold text-[#3a176e] sm:text-2xl">ยินดีต้อนรับสู่ศูนย์วิเคราะห์ข้อมูล</h2><p className="mt-2 max-w-xl text-xs leading-6 text-slate-600">ศูนย์รวมข้อมูลสำคัญจาก Oracle IFSAPP เพื่อการบริหารจัดการและตัดสินใจอย่างมีประสิทธิภาพ ครอบคลุมทุกกระบวนการของกองบินตำรวจ</p></div></div></div>
+      <StatusCard icon={Grid2X2} label="Dashboards ทั้งหมด" value="4" footer="พร้อมใช้งาน" color="text-blue-600" iconBg="bg-blue-600"/>
+      <StatusCard icon={Bell} label="Alerts ที่ยังไม่อ่าน" value={String(items.filter((item) => item.pinned).length || 1)} footer="ต้องดำเนินการ" color="text-orange-600" iconBg="bg-orange-500"/>
+      <StatusCard icon={CheckCircle2} label="รายการอนุมัติ" value="12" footer="รายการ" color="text-emerald-600" iconBg="bg-emerald-600"/>
+      <StatusCard icon={Database} label="สถานะข้อมูลล่าสุด" value="สด" footer="Oracle IFSAPP" color="text-violet-700" iconBg="bg-violet-600"/>
+    </section>
 
-      <section className="mt-9">
-        <div className="mb-5 flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-600">Operations overview</p><h2 className="mt-1 text-2xl font-bold text-slate-950">Dashboard หลัก</h2></div></div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {dashboards.map((dashboard) => {
-            const Icon = dashboard.icon;
-            return (
-              <Link key={dashboard.href} href={dashboard.href} className={`group relative min-h-56 overflow-hidden rounded-[24px] bg-gradient-to-br ${dashboard.color} p-6 text-white shadow-lg transition duration-300 hover:-translate-y-1 hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2`}>
-                <span className={`absolute -right-8 -top-8 size-32 rounded-full ${dashboard.glow} opacity-20 blur-2xl`} />
-                <div className="relative flex h-full flex-col"><span className="grid size-12 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20"><Icon className="size-6" /></span><h3 className="mt-auto text-xl font-bold">{dashboard.title}</h3><p className="mt-2 text-sm leading-6 text-white/75">{dashboard.detail}</p><span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold">เปิด Dashboard <ArrowRight className="size-4 transition group-hover:translate-x-1" /></span></div>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+    <section className="mt-2 grid gap-2 lg:grid-cols-[1.05fr_1fr]"><div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs font-bold text-[#17346b]">ตัวกรองด่วน</p><div className="mt-2 grid grid-cols-3 gap-2"><QuickFilter label="Site" value="ทั้งหมด"/><QuickFilter label="Period" value="เดือนปัจจุบัน"/><QuickFilter label="Department" value="ทั้งหมด"/></div></div><div className="rounded-lg border border-slate-200 bg-white p-3"><div className="flex items-center justify-between"><p className="text-xs font-bold text-[#17346b]">การแจ้งเตือนล่าสุด</p><Link href="/content" className="text-[10px] font-semibold text-blue-700">ดูทั้งหมด</Link></div><div className="mt-2 space-y-1.5">{items.slice(0, 3).map((item, index) => <Link key={item.id} href={`/content/${item.slug}`} className="flex items-center gap-2 text-[11px]"><span className={`size-2 rounded-full ${index === 0 ? "bg-rose-500" : index === 1 ? "bg-orange-500" : "bg-amber-400"}`}/><span className="min-w-0 flex-1 truncate text-[#263b70]">{item.title}</span><time className="text-[9px] text-slate-400">{item.publishAt ? formatDateTime(item.publishAt) : "ล่าสุด"}</time></Link>)}{!items.length && <p className="text-[11px] text-slate-400">ยังไม่มีการแจ้งเตือน</p>}</div></div></section>
 
-      <section className="mt-10">
-        <div className="mb-5 flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8d3b91]">Knowledge hub</p><h2 className="mt-1 text-2xl font-bold text-slate-950">ข่าวและบทความล่าสุด</h2></div><Link href="/content" className="text-sm font-semibold text-sky-700 hover:text-sky-900">ดูทั้งหมด</Link></div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {items.slice(0, 6).map((item) => (
-            <Link key={item.id} href={`/content/${item.slug}`}>
-              <Card className="h-full transition hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-lg"><CardContent className="flex h-full flex-col p-5"><div className="flex items-center justify-between gap-3"><Badge className={item.type === "NEWS" ? "bg-sky-50 text-sky-700" : "bg-violet-50 text-violet-700"}>{item.type === "NEWS" ? "ข่าว" : "บทความ"}</Badge>{item.publishAt && <time className="text-xs text-slate-400">{formatDateTime(item.publishAt)}</time>}</div><h3 className="mt-4 text-lg font-bold leading-7 text-slate-900">{item.title}</h3><p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{item.summary}</p><p className="mt-auto pt-5 text-xs font-semibold text-sky-700">{item.groupName ?? "ทั่วไป"}</p></CardContent></Card>
-            </Link>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
+    {pinned && <Link href={`/content/${pinned.slug}`} className="mt-2 flex min-h-11 items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 text-xs"><Badge className="bg-amber-500 text-white">ประกาศสำคัญ</Badge><span className="min-w-0 flex-1 truncate font-semibold text-amber-950">{pinned.title}</span><ArrowRight className="size-4 text-amber-700"/></Link>}
+
+    <section className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">{dashboards.map((dashboard) => { const Icon = dashboard.icon; return <Link key={dashboard.href} href={dashboard.href} className="group overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_3px_12px_rgba(15,23,42,.05)] transition hover:-translate-y-0.5 hover:shadow-lg"><div className={`relative h-28 overflow-hidden ${dashboard.soft} p-4`}><div className="absolute -bottom-10 -right-5 opacity-[.12]"><Icon className="size-40" style={{ color: dashboard.accent }}/></div><div className="relative flex items-start gap-2"><span className="grid size-8 place-items-center rounded-full text-sm font-bold text-white" style={{ background: dashboard.accent }}>{dashboard.number}</span><div><h2 className="text-sm font-bold text-[#17346b]">{dashboard.title}</h2><p className="text-[10px] text-slate-500">{dashboard.detail}</p></div></div></div><div className="grid grid-cols-2 divide-x divide-slate-100 border-y border-slate-100">{dashboard.metrics.map((metric, index) => <div key={metric} className="p-3"><p className="text-[10px] text-slate-500">{metric}</p><div className="mt-1 flex items-end justify-between"><p className="text-lg font-bold" style={{ color: dashboard.accent }}>{dashboard.values[index]}</p><MiniBars color={dashboard.accent}/></div></div>)}</div><div className="p-3"><p className="min-h-10 text-[11px] leading-5 text-slate-600">ติดตามตัวชี้วัดสำคัญ ดูกราฟแนวโน้มและตารางรายละเอียดจากข้อมูลจริงแบบเรียลไทม์</p><span className={`mt-2 flex min-h-11 items-center justify-center gap-2 rounded-md text-xs font-semibold text-white ${dashboard.button}`}>เปิด Dashboard <ArrowRight className="size-4 transition group-hover:translate-x-1"/></span></div></Link>; })}</section>
+
+    <section className="mt-3 rounded-lg border border-slate-200 bg-white"><div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-bold text-[#17346b]">ข่าวและบทความล่าสุด</h2><Link href="/content" className="text-[11px] font-semibold text-blue-700">ดูทั้งหมด →</Link></div><div className="grid divide-y divide-slate-100 md:grid-cols-2 md:divide-x md:divide-y-0">{items.slice(0, 4).map((item) => <Link key={item.id} href={`/content/${item.slug}`} className="flex items-start gap-3 p-3 hover:bg-slate-50"><Badge className={item.type === "NEWS" ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700"}>{item.type === "NEWS" ? "ข่าว" : "บทความ"}</Badge><div className="min-w-0"><h3 className="truncate text-xs font-bold text-slate-800">{item.title}</h3><p className="mt-1 line-clamp-1 text-[10px] text-slate-500">{item.summary}</p></div></Link>)}</div></section>
+  </div>;
 }
+
+function StatusCard({ icon: Icon, label, value, footer, color, iconBg }: { icon: typeof Grid2X2; label: string; value: string; footer: string; color: string; iconBg: string }) { return <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,.035)]"><div className="flex items-center gap-2"><span className={`grid size-9 place-items-center rounded-full text-white ${iconBg}`}><Icon className="size-[18px]"/></span><p className="text-[11px] font-semibold leading-4 text-[#17346b]">{label}</p></div><p className={`mt-3 text-3xl font-bold ${color}`}>{value}</p><p className="mt-1 text-[10px] text-slate-500">{footer}</p></div>; }
+function QuickFilter({ label, value }: { label: string; value: string }) { return <label className="text-[9px] text-slate-500">{label}<span className="mt-1 flex min-h-11 items-center rounded-md border border-slate-200 px-2.5 text-[11px] font-medium text-slate-700">{value}</span></label>; }
+function MiniBars({ color }: { color: string }) { return <svg aria-hidden="true" viewBox="0 0 52 25" className="h-6 w-12"><rect x="2" y="15" width="6" height="9" fill={color} opacity=".25"/><rect x="12" y="9" width="6" height="15" fill={color} opacity=".4"/><rect x="22" y="12" width="6" height="12" fill={color} opacity=".55"/><rect x="32" y="4" width="6" height="20" fill={color} opacity=".7"/><rect x="42" y="7" width="6" height="17" fill={color}/></svg>; }

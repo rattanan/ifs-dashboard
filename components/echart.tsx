@@ -2,8 +2,9 @@
 
 import * as echarts from "echarts";
 import { useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 
-export function EChart({ option, label }: { option: echarts.EChartsOption; label: string }) {
+export function EChart({ option, label, className }: { option: echarts.EChartsOption; label: string; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -18,5 +19,5 @@ export function EChart({ option, label }: { option: echarts.EChartsOption; label
     };
   }, [option]);
 
-  return <div ref={ref} role="img" aria-label={label} className="h-64 min-w-0 w-full overflow-hidden" />;
+  return <div ref={ref} role="img" aria-label={label} className={cn("h-52 min-w-0 w-full overflow-hidden", className)} />;
 }
