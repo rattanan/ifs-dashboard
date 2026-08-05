@@ -1,4 +1,4 @@
-import { ArrowRight, Bell, Boxes, CheckCircle2, CircleGauge, Database, Grid2X2, Plane, ReceiptText, RefreshCw, ShoppingCart, Wrench } from "lucide-react";
+import { ArrowRight, Bell, Boxes, CheckCircle2, CircleGauge, Database, Grid2X2, LayoutDashboard, Plane, ReceiptText, RefreshCw, ShoppingCart, Wrench } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth/session";
@@ -6,6 +6,7 @@ import { getPublishedContents } from "@/lib/content";
 import { formatDateTime } from "@/lib/utils";
 
 const dashboards = [
+  { href: "/dashboards/summary", number: "0", title: "Summary", detail: "ภาพรวมงบประมาณ อากาศยาน และงานซ่อม", icon: LayoutDashboard, accent: "#8d3b91", soft: "bg-violet-50", button: "bg-violet-700", metrics: ["สถานะข้อมูล", "ข้อมูลต้นทาง"], values: ["สด", "Oracle"] },
   { href: "/dashboards/maintenance", number: "1", title: "แผนกช่างและวางแผนการซ่อม", detail: "การวางแผนและบริหารงานซ่อมบำรุง", icon: Wrench, accent: "#1675dc", soft: "bg-blue-50", button: "bg-blue-600", metrics: ["WO ที่เปิดอยู่", "ความพร้อมอากาศยาน"], values: ["41", "76%"] },
   { href: "/dashboards/budget", number: "2", title: "แผนกงบประมาณ", detail: "งบประมาณและการควบคุมค่าใช้จ่าย", icon: ReceiptText, accent: "#07968f", soft: "bg-teal-50", button: "bg-teal-600", metrics: ["งบประมาณปีนี้", "ใช้ไปแล้ว"], values: ["10.00M", "61%"] },
   { href: "/dashboards/inventory", number: "3", title: "แผนกคลังพัสดุ", detail: "บริหารจัดการวัสดุและคลังสินค้า", icon: Boxes, accent: "#284eb8", soft: "bg-indigo-50", button: "bg-indigo-700", metrics: ["MR Line", "PO รออนุมัติ"], values: ["16", "3"] },
@@ -20,7 +21,7 @@ export default async function HomePage() {
 
     <section className="mt-3 grid gap-2 xl:grid-cols-[2.15fr_repeat(4,1fr)]">
       <div className="relative min-h-40 overflow-hidden rounded-lg border border-indigo-100 bg-gradient-to-r from-[#eef0ff] via-white to-[#eaf4ff] p-5"><div className="absolute -right-4 bottom-[-38px] text-sky-700/10"><Plane className="size-56"/></div><div className="relative flex items-start gap-4"><span className="grid size-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-violet-700 to-indigo-500 text-white"><CircleGauge className="size-7"/></span><div><h2 className="text-xl font-bold text-[#3a176e] sm:text-2xl">ยินดีต้อนรับสู่ศูนย์วิเคราะห์ข้อมูล</h2><p className="mt-2 max-w-xl text-xs leading-6 text-slate-600">ศูนย์รวมข้อมูลสำคัญจาก Oracle IFSAPP เพื่อการบริหารจัดการและตัดสินใจอย่างมีประสิทธิภาพ ครอบคลุมทุกกระบวนการของกองบินตำรวจ</p></div></div></div>
-      <StatusCard icon={Grid2X2} label="Dashboards ทั้งหมด" value="4" footer="พร้อมใช้งาน" color="text-blue-600" iconBg="bg-blue-600"/>
+      <StatusCard icon={Grid2X2} label="Dashboards ทั้งหมด" value="5" footer="พร้อมใช้งาน" color="text-blue-600" iconBg="bg-blue-600"/>
       <StatusCard icon={Bell} label="Alerts ที่ยังไม่อ่าน" value={String(items.filter((item) => item.pinned).length || 1)} footer="ต้องดำเนินการ" color="text-orange-600" iconBg="bg-orange-500"/>
       <StatusCard icon={CheckCircle2} label="รายการอนุมัติ" value="12" footer="รายการ" color="text-emerald-600" iconBg="bg-emerald-600"/>
       <StatusCard icon={Database} label="สถานะข้อมูลล่าสุด" value="สด" footer="Oracle IFSAPP" color="text-violet-700" iconBg="bg-violet-600"/>

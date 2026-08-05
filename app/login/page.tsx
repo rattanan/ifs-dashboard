@@ -28,7 +28,7 @@ export default async function LoginPage() {
           <div className="mt-10 grid max-w-2xl grid-cols-3 gap-3">
             {[
               [Activity, "Live IFS", "ข้อมูลปัจจุบัน"],
-              [Gauge, "4 Dashboards", "ครบทุกสายงาน"],
+              [Gauge, "5 Dashboards", "ครบทุกสายงาน"],
               [ShieldCheck, "Read only", "ปลอดภัยกับ Oracle"],
             ].map(([Icon, title, detail]) => (
               <div key={String(title)} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm">

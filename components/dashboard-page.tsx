@@ -10,6 +10,7 @@ import {
   Clock3,
   Database,
   Gauge,
+  LayoutDashboard,
   PackageCheck,
   RefreshCw,
   ShoppingCart,
@@ -47,6 +48,7 @@ const tones: Record<ToneKey, Tone> = {
 };
 
 const themes: Record<DashboardSlug, { accent: string; icon: string; Icon: LucideIcon; defaultTone: ToneKey }> = {
+  summary: { accent: "#8d3b91", icon: "bg-[#8d3b91]", Icon: LayoutDashboard, defaultTone: "purple" },
   maintenance: { accent: "#087fb5", icon: "bg-[#087fb5]", Icon: Wrench, defaultTone: "cyan" },
   budget: { accent: "#8d3b91", icon: "bg-[#8d3b91]", Icon: Gauge, defaultTone: "magenta" },
   inventory: { accent: "#279532", icon: "bg-[#279532]", Icon: Boxes, defaultTone: "green" },
@@ -54,6 +56,7 @@ const themes: Record<DashboardSlug, { accent: string; icon: string; Icon: Lucide
 };
 
 const meta: Record<DashboardSlug, { title: string; subtitle: string }> = {
+  summary: { title: "Summary", subtitle: "ภาพรวมงบประมาณ · อากาศยาน · WO และความเสี่ยงที่ต้องติดตาม" },
   maintenance: { title: "แผนกช่างและวางแผนการซ่อม", subtitle: "ความพร้อมอากาศยาน · WO · MMR · PM และ Component" },
   budget: { title: "แผนกงบประมาณ", subtitle: "งบประมาณประจำปี · ใช้จริง · ผูกพัน · คงเหลือ" },
   inventory: { title: "แผนกคลังพัสดุ", subtitle: "MR · MMR · PO รับเข้า · Turn-in และ Unserviceable" },
@@ -88,7 +91,12 @@ function toneForMetric(metric: MetricResult, dashboard: DashboardSlug): Tone {
   const id = metric.metricId;
   let key: ToneKey = themes[dashboard].defaultTone;
 
-  if (dashboard === "maintenance") {
+  if (dashboard === "summary") {
+    if (id.includes("budget")) key = "magenta";
+    else if (id.includes("aircraft")) key = "blue";
+    else if (id.includes("grounded") || id.includes("wo")) key = "cyan";
+    else key = "purple";
+  } else if (dashboard === "maintenance") {
     if (id.includes("mmr")) key = "lime";
     else if (id.includes("pm") || id.includes("component")) key = "purple";
     else if (id.includes("new-part")) key = "slate";
@@ -363,7 +371,8 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
 
       <section aria-label="ตัวกรอง Dashboard" className="mb-2 border border-[#6c2b74] bg-[#873c90] p-2 shadow-sm"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
         <FilterSelect label="Site" value={filters.site} onChange={(value) => change("site", value)} options={["T10", "T101"]} dark />
-        {dashboard === "budget" && <><FilterInput label="Project" value={filters.projectId} onChange={(value) => change("projectId", value)} placeholder="เช่น B6800" dark /><FilterInput label="Fiscal Year" value={filters.fiscalYear} onChange={(value) => change("fiscalYear", value)} placeholder="เช่น 2569" dark /></>}
+        {(dashboard === "budget" || dashboard === "summary") && <FilterInput label="Project" value={filters.projectId} onChange={(value) => change("projectId", value)} placeholder="เช่น B6800" dark />}
+        {dashboard === "budget" && <FilterInput label="Fiscal Year" value={filters.fiscalYear} onChange={(value) => change("fiscalYear", value)} placeholder="เช่น 2569" dark />}
         {dashboard === "inventory" && <><FilterSelect label="Location Group" value={filters.locationGroup ?? ""} onChange={(value) => change("locationGroup", value)} options={["", "DM-A", "DM-A1", "DM-L", "DM-P", "DM-UN", "TPAD", "TR-L", "TR-P"]} dark /><FilterInput label="Location" value={filters.locationSearch} onChange={(value) => change("locationSearch", value)} placeholder="ค้นหา Location" dark /></>}
         {dashboard === "procurement" && <><FilterInput label="Buyer" value={filters.buyer} onChange={(value) => change("buyer", value)} placeholder="ทั้งหมด" dark /><FilterInput label="Supplier" value={filters.supplier} onChange={(value) => change("supplier", value)} placeholder="ทั้งหมด" dark /></>}
         <FilterInput label="Period from" value={filters.from} onChange={(value) => change("from", value)} type="date" dark /><FilterInput label="Period to" value={filters.to} onChange={(value) => change("to", value)} type="date" dark />

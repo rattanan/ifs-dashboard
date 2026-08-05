@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   House,
+  LayoutDashboard,
   LogOut,
   Menu,
   Newspaper,
@@ -28,6 +29,7 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   { href: "/", label: "หน้าแรก", icon: House },
+  { href: "/dashboards/summary", label: "Summary", icon: LayoutDashboard },
   { href: "/dashboards/maintenance", label: "ช่างและแผนซ่อม", icon: Wrench },
   { href: "/dashboards/budget", label: "งบประมาณ", icon: ReceiptText },
   { href: "/dashboards/inventory", label: "คลังพัสดุ", icon: Boxes },
@@ -162,7 +164,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         <main id="main-content" className="min-h-screen pb-24 lg:pb-8">{children}</main>
       </div>
 
-      <nav aria-label="เมนูมือถือ" className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.16)] backdrop-blur lg:hidden">
+      <nav aria-label="เมนูมือถือ" className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.16)] backdrop-blur lg:hidden">
         {navigation.map((item) => {
           const Icon = item.icon;
           return <Link key={item.href} href={item.href} aria-label={item.label} className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[9px] font-medium text-slate-500 hover:bg-slate-100 hover:text-sky-700"><Icon className="size-[18px]" /><span className="max-w-full truncate">{item.label.split("และ")[0]}</span></Link>;

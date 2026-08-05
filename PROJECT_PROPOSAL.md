@@ -19,7 +19,7 @@
 
 TPAD IFS Executive Dashboard เป็นศูนย์กลางข้อมูลสำหรับผู้บริหารและหัวหน้างานของกองบินตำรวจ เพื่อดูภาพรวมภารกิจจาก IFS ERP ในมุมที่นำไปใช้ตัดสินใจได้ทันที โดยเชื่อมต่อข้อมูลจาก Oracle IFS แบบอ่านอย่างเดียว และใช้ฐานข้อมูล MariaDB สำหรับการยืนยันตัวตน สิทธิ์ผู้ใช้ session เนื้อหาข่าว/บทความ ประวัติการสนทนา และ audit log
 
-ระบบประกอบด้วย Dashboard 4 ด้าน ได้แก่ งานช่างและวางแผนการซ่อม งบประมาณ คลังพัสดุ และจัดซื้อ/จ้างซ่อม รวม 55 metrics/cards ที่นำเสนอเป็น KPI, summary, chart และตารางรายละเอียด มีตัวกรองตามบริบทงาน การเปิดดูรายละเอียด การ refresh และกลไก cache พร้อมแสดงข้อมูลล่าสุดที่ยังใช้ได้เมื่อ Oracle ไม่ตอบสนอง นอกจากนี้มีผู้ช่วย IFS ที่ตอบโดยอ้างอิงเฉพาะ metric ที่อนุญาตและแสดง Card ต้นทางเพื่อให้ตรวจสอบย้อนกลับได้
+ระบบประกอบด้วย Dashboard Summary และ Dashboard 4 ด้าน ได้แก่ งานช่างและวางแผนการซ่อม งบประมาณ คลังพัสดุ และจัดซื้อ/จ้างซ่อม รวม 63 metrics/cards ที่นำเสนอเป็น KPI, summary, chart และตารางรายละเอียด มีตัวกรองตามบริบทงาน การเปิดดูรายละเอียด การ refresh และกลไก cache พร้อมแสดงข้อมูลล่าสุดที่ยังใช้ได้เมื่อ Oracle ไม่ตอบสนอง นอกจากนี้มีผู้ช่วย IFS ที่ตอบโดยอ้างอิงเฉพาะ metric ที่อนุญาตและแสดง Card ต้นทางเพื่อให้ตรวจสอบย้อนกลับได้
 
 ข้อเสนอฉบับนี้มีเป้าหมายยกระดับ MVP ให้เป็น Pilot ที่ผ่านการตรวจสอบความถูกต้องกับผู้ใช้จริง มี security baseline ชัดเจน มีคู่มือและแผนดูแลระบบ และพร้อมขยายเป็นระบบ Production ภายใต้การอนุมัติของเจ้าของข้อมูลและหน่วยงานเทคโนโลยีสารสนเทศ
 
@@ -66,7 +66,7 @@ TPAD IFS Executive Dashboard เป็นศูนย์กลางข้อม
 | Web application | Next.js 16 App Router, React 19, responsive UI และ protected layout |
 | Authentication | Login ภายในองค์กร, session cookie, ผู้ใช้ active/inactive, ไม่มี public signup |
 | Authorization | บทบาท `ADMIN` และ `READ_ONLY`, ตรวจสิทธิ์ใน server-side function |
-| Dashboard | 4 dashboard, ECharts, KPI/summary/chart/table, filter, refresh และ detail view |
+| Dashboard | 5 dashboard, ECharts, KPI/summary/chart/table, filter, refresh และ detail view |
 | Data source | Oracle IFS ผ่าน `oracledb` connection pool แบบ read-only |
 | Data safety | fixed query catalog, bind variables, SQL guard, timeout 15 วินาที, max 500 rows, rollback |
 | Cache | cache ในหน่วยความจำ 5 นาที และอนุญาต stale fallback ได้ถึง 30 นาที |
@@ -81,7 +81,7 @@ TPAD IFS Executive Dashboard เป็นศูนย์กลางข้อม
 
 ### 6.1 ขอบเขตที่เสนอให้ดำเนินการ
 
-1. ตรวจสอบและรับรองนิยาม metric กับเจ้าของข้อมูลทั้ง 4 แผนก
+1. ตรวจสอบและรับรองนิยาม metric กับเจ้าของข้อมูลของ Summary และทั้ง 4 แผนก
 2. เชื่อมต่อและทดสอบ Oracle IFS ในสภาพแวดล้อมจริงหรือ UAT
 3. Hardening ระบบ authentication, authorization, session และ secret management
 4. ตรวจสอบความถูกต้องของ filter, timezone, หน่วยวัด และ business rule ของแต่ละ Card
@@ -126,7 +126,7 @@ TPAD IFS Executive Dashboard เป็นศูนย์กลางข้อม
 
 ### FR-02 Home และการนำทาง
 
-- แสดงลิงก์ไปยัง Dashboard ทั้ง 4 ด้าน
+- แสดงลิงก์ไปยัง Dashboard Summary และทั้ง 4 ด้าน
 - แสดงสถานะข้อมูลล่าสุดและข่าว/ประกาศสำคัญ
 - รองรับ desktop, tablet และ mobile
 - มีเมนูหลักและเมนูมือถือพร้อมป้ายกำกับสำหรับ accessibility
@@ -139,7 +139,7 @@ TPAD IFS Executive Dashboard เป็นศูนย์กลางข้อม
 - แสดงเวลา generated และสถานะว่าเป็นข้อมูลสดหรือ stale cache
 - เปิดดูรายละเอียดของ Card ในรูปแบบตาราง/ข้อมูลดิบที่เกี่ยวข้อง
 
-### FR-04 ขอบเขต metric ของ 4 Dashboard
+### FR-04 ขอบเขต metric ของ Summary และ 4 Dashboard
 
 | Dashboard | จำนวน | ขอบเขตข้อมูลหลัก |
 | --- | ---: | --- |
@@ -147,7 +147,8 @@ TPAD IFS Executive Dashboard เป็นศูนย์กลางข้อม
 | Budget | 9 | งบตั้งต้น, actual, committed, balance, utilization, cost element, invoice และ PO |
 | Inventory | 14 | MR/MMR, PO รับเข้า, pick list, turn-in, unserviceable, expiry, low stock และรายการรอคลัง |
 | Procurement | 13 | RFQ, PR approval, PO, overdue, delivery, supplier quality/reliability และ trend |
-| **รวม** | **55** | **metrics/cards ใน catalog ปัจจุบัน** |
+| Summary | 8 | ภาพรวมงบประมาณ อากาศยาน WO และอากาศยานหยุดบิน |
+| **รวม** | **63** | **metrics/cards ใน catalog ปัจจุบัน** |
 
 ### FR-05 Cache และความทนทาน
 
@@ -282,7 +283,7 @@ MariaDB ใช้เก็บข้อมูลที่ไม่ควรเข
 | --- | --- | --- | --- |
 | 1. Discovery และ Data Contract | สัปดาห์ 1 | ยืนยันผู้ใช้, metric, นิยามตัวเลข, filter, Site, timezone และสิทธิ์ | Approved requirement และ metric sign-off plan |
 | 2. Environment และ Security Baseline | สัปดาห์ 2 | ตั้งค่า DB/Oracle/network, secrets, migration, session policy, logging | UAT environment และ security checklist รอบแรก |
-| 3. Dashboard Validation | สัปดาห์ 3–4 | ทดสอบ 55 metrics, เทียบตัวเลขกับ IFS, tuning query และ filter | Dashboard baseline report และ defect list |
+| 3. Dashboard Validation | สัปดาห์ 3–4 | ทดสอบ 63 metrics, เทียบตัวเลขกับ IFS, tuning query และ filter | Dashboard baseline report และ defect list |
 | 4. Content, Admin และ AI Assistant | สัปดาห์ 5 | ทดสอบ RBAC, content workflow, media, audit และ chatbot intent/source | Admin/content acceptance และ chatbot test set |
 | 5. Performance, Security และ UAT | สัปดาห์ 6–7 | load test, failure test, stale cache, security review และ user acceptance | UAT sign-off หรือรายการแก้ไขรอบสุดท้าย |
 | 6. Pilot Go-live และ Handover | สัปดาห์ 8 | deploy, seed admin, training, runbook, support window | Pilot release และ handover package |
@@ -292,7 +293,7 @@ MariaDB ใช้เก็บข้อมูลที่ไม่ควรเข
 ## 14. ผลส่งมอบของโครงการ
 
 1. Web application เวอร์ชัน Pilot/Production พร้อม source code และ build artifact
-2. Dashboard 4 ด้านและ metric catalog ที่ผ่านการรับรองกับเจ้าของข้อมูล
+2. Dashboard Summary และ Dashboard 4 ด้าน พร้อม metric catalog ที่ผ่านการรับรองกับเจ้าของข้อมูล
 3. MariaDB migration, bootstrap script และแนวทาง backup/restore
 4. Authentication, RBAC, admin workflow และ audit log
 5. Knowledge Hub สำหรับข่าว/บทความและ media workflow
@@ -308,7 +309,7 @@ MariaDB ใช้เก็บข้อมูลที่ไม่ควรเข
 
 - ผู้ใช้ที่ active login ได้ และผู้ใช้ที่ปิดใช้งานไม่สามารถใช้งานต่อได้
 - Admin และ Read-only เห็นเมนูและทำ action ได้ตามสิทธิ์
-- Dashboard ทั้ง 4 เปิดได้และแสดง metric ที่ได้รับอนุมัติครบ 55 รายการ หรือมีรายการยกเว้นที่ลงนามรับทราบ
+- Dashboard Summary และทั้ง 4 ด้านเปิดได้และแสดง metric ที่ได้รับอนุมัติครบ 63 รายการ หรือมีรายการยกเว้นที่ลงนามรับทราบ
 - ตัวเลขตัวอย่างจากแต่ละ Card ตรงกับ Oracle IFS baseline ตาม tolerance ที่เจ้าของข้อมูลกำหนด
 - Filter สำคัญ เช่น Site, Project, Fiscal Year, Buyer และ Supplier ให้ผลลัพธ์ถูกต้อง
 - Oracle ไม่รับคำสั่ง INSERT/UPDATE/DELETE/DDL จากระบบ และ smoke test ผ่าน
@@ -442,7 +443,7 @@ MariaDB ใช้เก็บข้อมูลที่ไม่ควรเข
 - [ ] Oracle read-only account และ network path ผ่านการทดสอบ
 - [ ] MariaDB migration/backup/restore ผ่านการทดสอบ
 - [ ] User/role matrix และ session policy ได้รับการอนุมัติ
-- [ ] 55 metrics ผ่าน baseline/UAT หรือมี waiver ที่ลงนาม
+- [ ] 63 metrics ผ่าน baseline/UAT หรือมี waiver ที่ลงนาม
 - [ ] Query guard, timeout, row limit และ rollback ผ่าน security review
 - [ ] Chatbot test set ผ่าน และทุกคำตอบมี source Card
 - [ ] Content/media upload ผ่าน file validation และ backup test

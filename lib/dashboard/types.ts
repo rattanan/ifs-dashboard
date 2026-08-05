@@ -1,4 +1,4 @@
-export type DashboardSlug = "maintenance" | "budget" | "inventory" | "procurement";
+export type DashboardSlug = "summary" | "maintenance" | "budget" | "inventory" | "procurement";
 export type MetricKind = "kpi" | "summary" | "bar" | "donut" | "line" | "gauge" | "table";
 
 export interface DashboardFilters {

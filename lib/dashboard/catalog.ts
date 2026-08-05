@@ -889,7 +889,139 @@ const procurement: MetricDefinition[] = [
   },
 ];
 
+const summary: MetricDefinition[] = [
+  {
+    id: "summary.budget",
+    dashboard: "summary",
+    title: "ภาพรวมงบประมาณ",
+    description: "งบตั้งต้น ใช้จริง ผูกพัน และคงเหลือของโครงการ",
+    sourceElementId: "41dd09bf-c14d-417a-891f-75fb50754ae2",
+    sourceDataSourceId: "8183cea7-3fbe-432d-9477-72daf540c389",
+    allowedFilters: ["projectId"],
+    kind: "summary",
+    size: "wide",
+    sql: `SELECT ROUND(SUM(ESTIMATED), 2) AS "budget", ROUND(SUM(ACTUAL), 2) AS "actual",
+        ROUND(SUM(COMMITTED), 2) AS "committed", ROUND(SUM(ESTIMATED - ACTUAL), 2) AS "balance"
+      FROM PROJ_CON_DET_SUM_COST_PROJECT
+      WHERE (:projectId IS NULL OR PROJECT_ID = UPPER(:projectId))`,
+  },
+  {
+    id: "summary.budget-by-project",
+    dashboard: "summary",
+    title: "Budget Graph",
+    description: "งบประมาณแยกตามโครงการ",
+    sourceElementId: "f8fd7504-a684-480c-b5a4-3670d10c67be",
+    sourceDataSourceId: "8183cea7-3fbe-432d-9477-72daf540c389",
+    allowedFilters: ["projectId"],
+    kind: "bar",
+    size: "lg",
+    sql: `SELECT PROJECT_ID AS "label", ROUND(SUM(ESTIMATED), 2) AS "value"
+      FROM PROJ_CON_DET_SUM_COST_PROJECT
+      WHERE (:projectId IS NULL OR PROJECT_ID = UPPER(:projectId))
+      GROUP BY PROJECT_ID ORDER BY SUM(ESTIMATED) DESC FETCH FIRST 10 ROWS ONLY`,
+  },
+  {
+    id: "summary.aircraft-status",
+    dashboard: "summary",
+    title: "สถานะอากาศยาน",
+    description: "จำนวนอากาศยานแยกตามแบบและสถานะปัจจุบัน",
+    sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
+    sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
+    allowedFilters: ["site"],
+    kind: "donut",
+    size: "md",
+    sql: `SELECT TYPE || ' · ' || CF$_C_STATUS AS "label", COUNT(CF$_C_STATUS) AS "value"
+      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
+      WHERE CF$_C_STATUS IS NOT NULL AND CF$_C_STATUS <> 'xxx'
+        AND MCH_TYPE = 'AIRCRAFT' AND CONTRACT = :site
+      GROUP BY TYPE, CF$_C_STATUS ORDER BY COUNT(CF$_C_STATUS) DESC`,
+  },
+  {
+    id: "summary.aircraft-list",
+    dashboard: "summary",
+    title: "รายการสถานะอากาศยาน",
+    description: "รายละเอียดอากาศยานตาม SQL จาก speaker note",
+    sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
+    sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT TYPE AS "Type", CF$_C_CONDITION AS "Condition", MCH_CODE AS "Aircraft",
+        MCH_NAME AS "Description", MCH_TYPE AS "Machine Type", SERIAL_NO AS "Serial No"
+      FROM EQUIPMENT_FUNCTIONAL_CFV
+      WHERE MCH_TYPE = 'AIRCRAFT' AND CF$_C_CONDITION <> 'อื่น ๆ' AND CONTRACT = :site
+      ORDER BY TYPE, MCH_CODE FETCH FIRST 50 ROWS ONLY`,
+  },
+  {
+    id: "summary.wo-by-aircraft",
+    dashboard: "summary",
+    title: "WO ตามอากาศยานและประเภทงาน",
+    description: "จำนวน Work Order ตามอากาศยานและ Work Type",
+    sourceElementId: "9e5e5e5a-93e8-46f6-93d2-79582c4d31c6",
+    sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT MCH_CODE AS "Aircraft", NVL(WORK_TYPE_ID, 'ไม่ระบุ') AS "Work Type",
+        COUNT(WORK_TYPE_ID) AS "WO Count"
+      FROM ACTIVE_SEPARATE_OVERVIEW
+      WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
+      GROUP BY MCH_CODE, WORK_TYPE_ID ORDER BY MCH_CODE, WORK_TYPE_ID FETCH FIRST 100 ROWS ONLY`,
+  },
+  {
+    id: "summary.wo-status",
+    dashboard: "summary",
+    title: "สถานะ WO",
+    description: "จำนวน Work Order แยกตามสถานะ",
+    sourceElementId: "7eb1ee6e-b249-4243-ae53-25d300f62a55",
+    sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
+    allowedFilters: ["site"],
+    kind: "donut",
+    size: "md",
+    sql: `SELECT STATE AS "label", COUNT(WO_NO) AS "value"
+      FROM ACTIVE_SEPARATE_OVERVIEW
+      WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
+      GROUP BY STATE ORDER BY COUNT(WO_NO) DESC`,
+  },
+  {
+    id: "summary.wo-packages",
+    dashboard: "summary",
+    title: "WO Package",
+    description: "Work Order ที่มีงานเชื่อมโยงและยังไม่ปิด",
+    sourceElementId: "1f4fb9fd-273d-403d-8af8-76a36f101d5a",
+    sourceDataSourceId: "e076d552-6f9f-4f1d-8a2e-6dcb5ee251bf",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT MCH_CODE AS "Aircraft", WO_NO AS "WO No", ERR_DESCR AS "Description",
+        WORK_ORDER_CONNECTION_API.Has_Connection_Down(WO_NO) AS "Connection Down"
+      FROM ACTIVE_SEPARATE_ELS_VIEW
+      WHERE CONTRACT = :site AND WORK_ORDER_CONNECTION_API.Has_Connection_Down(WO_NO) = 'TRUE'
+        AND STATE NOT IN ('Finished','Cancelled')
+      ORDER BY MCH_CODE, WO_NO FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "summary.grounded-aircraft",
+    dashboard: "summary",
+    title: "อากาศยานหยุดบินเกิน 7 วัน",
+    description: "อากาศยานที่ไม่มีการบันทึกการบินเกินเกณฑ์",
+    sourceElementId: "6a2a808c-3c48-45cb-b5ff-9d379d5d8e5f",
+    sourceDataSourceId: "a51d1ed5-6da4-4339-809e-0dce92c71699",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT MCH_CODE AS "Aircraft", REG_DATE AS "Last Flight",
+        ROUND(SYSDATE - REG_DATE, 2) AS "Grounded Days", MEASURED_VALUE AS "TSN"
+      FROM EQUIP_OBJECT_MEAS_GROUP_CFV
+      WHERE SYSDATE - REG_DATE > 7 AND TEST_POINT_ID = 'TSN'
+        AND CF$_C_MCH_TYPE = 'AIRCRAFT' AND CONTRACT = :site
+        AND EQUIPMENT_OBJECT_API.Get_OPERATIONAL_STATUS(CONTRACT, MCH_CODE) <> 'Scrapped'
+      ORDER BY REG_DATE FETCH FIRST 30 ROWS ONLY`,
+  },
+];
+
 export const metricCatalog: MetricDefinition[] = [
+  ...summary,
   ...maintenance,
   ...budget,
   ...inventory,
@@ -897,6 +1029,7 @@ export const metricCatalog: MetricDefinition[] = [
 ];
 
 export const dashboardSlugs: DashboardSlug[] = [
+  "summary",
   "maintenance",
   "budget",
   "inventory",
@@ -904,6 +1037,11 @@ export const dashboardSlugs: DashboardSlug[] = [
 ];
 
 export const dashboardMeta: Record<DashboardSlug, { title: string; subtitle: string; accent: string }> = {
+  summary: {
+    title: "Summary",
+    subtitle: "ภาพรวมงบประมาณ อากาศยาน และงานซ่อมจาก Oracle IFSAPP",
+    accent: "purple",
+  },
   maintenance: {
     title: "แผนกช่างและวางแผนการซ่อม",
     subtitle: "ความพร้อมอากาศยาน งานซ่อม และแผนบำรุงรักษา",
