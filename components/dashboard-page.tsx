@@ -20,6 +20,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { EChart } from "@/components/echart";
+import { MaintenanceDashboard } from "@/components/maintenance-dashboard";
 import { SummaryDashboard } from "@/components/summary-dashboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -369,6 +370,20 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
   if (dashboard === "summary") {
     return (
       <SummaryDashboard
+        data={data}
+        filters={filters}
+        loading={loading}
+        error={error}
+        onChange={change}
+        onReset={reset}
+        onRefresh={() => void load(true)}
+      />
+    );
+  }
+
+  if (dashboard === "maintenance") {
+    return (
+      <MaintenanceDashboard
         data={data}
         filters={filters}
         loading={loading}

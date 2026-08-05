@@ -2,145 +2,6 @@ import type { DashboardSlug, MetricDefinition } from "./types";
 
 const maintenance: MetricDefinition[] = [
   {
-    id: "maintenance.aircraft-status",
-    dashboard: "maintenance",
-    title: "สถานะอากาศยาน",
-    description: "จำนวนอากาศยานแยกตามแบบและสถานะปัจจุบัน",
-    sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
-    sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
-    allowedFilters: ["site"],
-    kind: "donut",
-    size: "lg",
-    sql: `SELECT TYPE || ' · ' || CF$_C_STATUS AS "label", COUNT(CF$_C_STATUS) AS "value"
-      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
-      WHERE CF$_C_STATUS IS NOT NULL AND CF$_C_STATUS <> 'xxx'
-        AND MCH_TYPE = 'AIRCRAFT' AND CONTRACT = :site
-      GROUP BY TYPE, CF$_C_STATUS ORDER BY COUNT(CF$_C_STATUS) DESC`,
-  },
-  {
-    id: "maintenance.wo-status",
-    dashboard: "maintenance",
-    title: "WO แยกตามสถานะ",
-    description: "งานซ่อมที่ยังเปิดอยู่ในแต่ละขั้นตอน",
-    sourceElementId: "7eb1ee6e-b249-4243-ae53-25d300f62a55",
-    sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
-    allowedFilters: ["site"],
-    kind: "bar",
-    size: "md",
-    sql: `SELECT STATE AS "label", COUNT(WO_NO) AS "value"
-      FROM ACTIVE_SEPARATE_OVERVIEW
-      WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
-      GROUP BY STATE ORDER BY COUNT(WO_NO) DESC`,
-  },
-  {
-    id: "maintenance.wo-work-type",
-    dashboard: "maintenance",
-    title: "งานคงค้างตามประเภทงาน",
-    description: "จำนวน WO ตาม Work Type เพื่อเห็นภาระงานหลัก",
-    sourceElementId: "6bbfc058-8de9-41a5-a93d-e65d437769b9",
-    sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
-    allowedFilters: ["site"],
-    kind: "bar",
-    size: "md",
-    sql: `SELECT NVL(WORK_TYPE_ID, 'ไม่ระบุ') AS "label", COUNT(WO_NO) AS "value"
-      FROM ACTIVE_SEPARATE_OVERVIEW
-      WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
-      GROUP BY WORK_TYPE_ID ORDER BY COUNT(WO_NO) DESC FETCH FIRST 12 ROWS ONLY`,
-  },
-  {
-    id: "maintenance.grounded-seven-days",
-    dashboard: "maintenance",
-    title: "หยุดบินเกิน 7 วัน",
-    description: "อากาศยานที่ไม่มีการบันทึกการบินเกินเกณฑ์",
-    sourceElementId: "6a2a808c-3c48-45cb-b5ff-9d379d5d8e5f",
-    sourceDataSourceId: "a51d1ed5-6da4-4339-809e-0dce92c71699",
-    allowedFilters: ["site"],
-    kind: "kpi",
-    size: "sm",
-    valueLabel: "ลำ",
-    sql: `SELECT COUNT(*) AS "value"
-      FROM EQUIP_OBJECT_MEAS_GROUP_CFV
-      WHERE SYSDATE - REG_DATE > 7 AND TEST_POINT_ID = 'TSN'
-        AND CF$_C_MCH_TYPE = 'AIRCRAFT' AND CONTRACT = :site
-        AND IFSAPP.EQUIPMENT_OBJECT_API.Get_OPERATIONAL_STATUS(CONTRACT, MCH_CODE) <> 'Scrapped'`,
-  },
-  {
-    id: "maintenance.mmr-status",
-    dashboard: "maintenance",
-    title: "สถานะ MMR",
-    description: "Material requisition ของงานซ่อมแยกตามสถานะ",
-    sourceElementId: "143f15e1-3254-485d-8b0b-42f2a5e7a886",
-    sourceDataSourceId: "a6a1a57c-9d91-4f88-ae2d-ce30a4851421",
-    allowedFilters: ["site"],
-    kind: "bar",
-    size: "md",
-    sql: `SELECT STATE AS "label", COUNT(*) AS "value"
-      FROM MAINT_MATERIAL_REQUISITION_CFV
-      WHERE IFSAPP.WORK_ORDER_API.Get_Contract(WO_NO) = :site
-      GROUP BY STATE ORDER BY COUNT(*) DESC`,
-  },
-  {
-    id: "maintenance.pm-six-months",
-    dashboard: "maintenance",
-    title: "PM ภายใน 6 เดือน",
-    description: "รายการบำรุงรักษาตามปฏิทินที่ใกล้ถึงกำหนด",
-    sourceElementId: "e06c15ad-3b40-49f7-9a59-dce8f952f033",
-    sourceDataSourceId: "1a10310c-bf94-400e-80c0-65ab768021c8",
-    allowedFilters: ["site"],
-    kind: "kpi",
-    size: "sm",
-    valueLabel: "รายการ",
-    sql: `SELECT COUNT(*) AS "value"
-      FROM PM_ACTION_CALENDAR_PLAN_CFV
-      WHERE PLANNED_DATE BETWEEN SYSDATE AND SYSDATE + 180
-        AND (WORK_ORDER_API.Get_State(WO_NO) NOT IN ('Canceled','Finished') OR WO_NO IS NULL)
-        AND PM_ACTION_API.Get_State(PM_NO, PM_REVISION) <> 'Obsolete'
-        AND GENERATION_TYPE = 'Calendar'
-        AND PM_ACTION_API.Get_Connection_Type(PM_NO, PM_REVISION) = 'EQUIPMENT'
-        AND CF$_C_WORK_TYPE IN ('WPK')
-        AND PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) = :site`,
-  },
-  {
-    id: "maintenance.pm-500-hours",
-    dashboard: "maintenance",
-    title: "PM ภายใน 500 ชั่วโมง",
-    description: "งานบำรุงรักษาที่เหลือชั่วโมงบินต่ำกว่า 500 ชั่วโมง",
-    sourceElementId: "1ea50eb2-110a-477b-9d65-d5ec000c26fb",
-    sourceDataSourceId: "02d8b1ef-72d9-498a-8a2e-e87314a5c9b3",
-    allowedFilters: ["site"],
-    kind: "table",
-    size: "wide",
-    sql: `SELECT PM_ACTION_CALENDAR_PLAN_API.Get_Mch_Code(PM_NO, PM_REVISION) AS "Aircraft",
-        PM_NO AS "PM No", CF$_C_ACTION AS "Action", PLANNED_VALUE AS "Planned",
-        CF$_C_TSO AS "TSO", CF$_C_REMAIN AS "Remaining", WO_NO AS "WO No"
-      FROM PM_ACTION_CALENDAR_PLAN_CFV
-      WHERE CF$_C_REMAIN < 500
-        AND PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) = :site
-        AND (WORK_ORDER_API.Get_State(WO_NO) NOT IN ('Canceled','Finished') OR WO_NO IS NULL)
-        AND PM_ACTION_API.Get_State(PM_NO, PM_REVISION) <> 'Obsolete'
-        AND GENERATION_TYPE = 'Condition'
-        AND PLANNED_VALUE <> 0
-        AND CF$_C_WORK_TYPE IN ('WPK','ALS')
-      ORDER BY CF$_C_REMAIN FETCH FIRST 20 ROWS ONLY`,
-  },
-  {
-    id: "maintenance.component-life",
-    dashboard: "maintenance",
-    title: "Component ใกล้ครบอายุ",
-    description: "ชิ้นส่วนอากาศยานที่เหลืออายุใช้งานต่ำกว่า 100 ชั่วโมง",
-    sourceElementId: "fcacbaf4-45a0-49a3-b6e9-11fb11e1a668",
-    sourceDataSourceId: "7bfbf38a-7bcc-4826-85db-7ecdad28eed8",
-    allowedFilters: ["site"],
-    kind: "table",
-    size: "wide",
-    sql: `SELECT MCH_CODE AS "Component", SUP_MCH_CODE AS "Aircraft",
-        CF$_C_LIFELIMIT AS "Life Limit", CF$_C_TSO AS "TSO", CF$_C_REMAINHR AS "Remain Hr"
-      FROM EQUIPMENT_SERIAL_UIV_CFV
-      WHERE CONTRACT = :site AND CF$_C_REMAINHR < 100 AND CF$_C_AVL = 'Yes'
-        AND OPERATIONAL_STATUS <> 'Scrapped' AND SUP_MCH_CODE NOT IN ('0000','XXXX')
-      ORDER BY CF$_C_REMAINHR FETCH FIRST 20 ROWS ONLY`,
-  },
-  {
     id: "maintenance.aircraft-list",
     dashboard: "maintenance",
     title: "รายการอากาศยานตามสถานะ",
@@ -152,7 +13,20 @@ const maintenance: MetricDefinition[] = [
         CF$_C_CONDITION AS "Condition", MCH_TYPE AS "Machine Type", SERIAL_NO AS "Serial No"
       FROM EQUIPMENT_FUNCTIONAL_CFV
       WHERE MCH_TYPE = 'AIRCRAFT' AND CF$_C_CONDITION <> 'อื่น ๆ' AND CONTRACT = :site
-      ORDER BY TYPE, MCH_CODE FETCH FIRST 30 ROWS ONLY`,
+      ORDER BY TYPE, MCH_CODE`,
+  },
+  {
+    id: "maintenance.wo-work-type",
+    dashboard: "maintenance",
+    title: "จำนวนงานคงค้าง แยกตามประเภทของงาน",
+    description: "Backlog ของงานซ่อมเปรียบเทียบตาม Work Type",
+    sourceElementId: "6bbfc058-8de9-41a5-a93d-e65d437769b9",
+    sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
+    allowedFilters: ["site"], kind: "bar", size: "lg",
+    sql: `SELECT NVL(WORK_TYPE_ID, 'ไม่ระบุ') AS "label", COUNT(WORK_TYPE_ID) AS "value"
+      FROM ACTIVE_SEPARATE_OVERVIEW
+      WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
+      GROUP BY WORK_TYPE_ID ORDER BY COUNT(WORK_TYPE_ID) DESC`,
   },
   {
     id: "maintenance.wo-by-aircraft",
@@ -166,7 +40,33 @@ const maintenance: MetricDefinition[] = [
         COUNT(WORK_TYPE_ID) AS "WO Count"
       FROM ACTIVE_SEPARATE_OVERVIEW
       WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
-      GROUP BY MCH_CODE, WORK_TYPE_ID ORDER BY MCH_CODE, WORK_TYPE_ID FETCH FIRST 100 ROWS ONLY`,
+      GROUP BY MCH_CODE, WORK_TYPE_ID ORDER BY MCH_CODE, WORK_TYPE_ID`,
+  },
+  {
+    id: "maintenance.wo-status",
+    dashboard: "maintenance",
+    title: "WO แยกตามสถานะ",
+    description: "Work Order lifecycle และจำนวนงานในแต่ละขั้นตอน",
+    sourceElementId: "7eb1ee6e-b249-4243-ae53-25d300f62a55",
+    sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
+    allowedFilters: ["site"], kind: "bar", size: "lg",
+    sql: `SELECT STATE AS "label", COUNT(WO_NO) AS "value"
+      FROM ACTIVE_SEPARATE_OVERVIEW
+      WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
+      GROUP BY STATE ORDER BY COUNT(WO_NO) DESC`,
+  },
+  {
+    id: "maintenance.fault-report",
+    dashboard: "maintenance",
+    title: "Fault Report ที่สร้างใหม่",
+    description: "รายการความขัดข้องใหม่ที่ยังต้องประเมินหรือดำเนินการ",
+    sourceElementId: "7eb1ee6e-b249-4243-ae53-25d300f62a55",
+    sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT WO_NO AS "WO No", MCH_CODE AS "Aircraft", ERR_DESCR AS "Fault", STATE AS "Status"
+      FROM ACTIVE_SEPARATE_OVERVIEW
+      WHERE GROUP_ID IS NOT NULL AND STATE = 'FaultReport' AND CONTRACT = :site
+      ORDER BY WO_NO DESC`,
   },
   {
     id: "maintenance.wo-packages",
@@ -180,7 +80,7 @@ const maintenance: MetricDefinition[] = [
       FROM ACTIVE_SEPARATE_ELS_VIEW
       WHERE CONTRACT = :site AND WORK_ORDER_CONNECTION_API.Has_Connection_Down(WO_NO) = 'TRUE'
         AND STATE NOT IN ('Finished','Cancelled')
-      ORDER BY MCH_CODE, WO_NO FETCH FIRST 30 ROWS ONLY`,
+      ORDER BY MCH_CODE, WO_NO`,
   },
   {
     id: "maintenance.grounded-list",
@@ -195,7 +95,7 @@ const maintenance: MetricDefinition[] = [
       FROM EQUIP_OBJECT_MEAS_GROUP_CFV
       WHERE SYSDATE - REG_DATE > 7 AND TEST_POINT_ID = 'TSN' AND CF$_C_MCH_TYPE = 'AIRCRAFT'
         AND CONTRACT = :site AND EQUIPMENT_OBJECT_API.Get_OPERATIONAL_STATUS(CONTRACT, MCH_CODE) <> 'Scrapped'
-      ORDER BY REG_DATE FETCH FIRST 30 ROWS ONLY`,
+      ORDER BY REG_DATE`,
   },
   {
     id: "maintenance.pm-calendar",
@@ -209,28 +109,14 @@ const maintenance: MetricDefinition[] = [
         PM_NO AS "PM No", CF$_C_ACTION AS "Action", PLANNED_DATE AS "Planned Date", WO_NO AS "WO No",
         GENERATION_DATE AS "Generation Date"
       FROM PM_ACTION_CALENDAR_PLAN_CFV
-      WHERE PLANNED_DATE BETWEEN SYSDATE AND SYSDATE + 180
+      WHERE PLANNED_DATE - SYSDATE < 180
         AND (WORK_ORDER_API.Get_State(WO_NO) NOT IN ('Canceled','Finished') OR WO_NO IS NULL)
         AND PM_ACTION_API.Get_State(PM_NO, PM_REVISION) <> 'Obsolete'
         AND GENERATION_TYPE = 'Calendar'
         AND PM_ACTION_API.Get_Connection_Type(PM_NO, PM_REVISION) = 'EQUIPMENT'
         AND CF$_C_WORK_TYPE IN ('WPK')
         AND PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) = :site
-      ORDER BY PLANNED_DATE FETCH FIRST 30 ROWS ONLY`,
-  },
-  {
-    id: "maintenance.aircraft-readiness-list",
-    dashboard: "maintenance",
-    title: "รายการสถานะอากาศยาน",
-    description: "สถานะและการตอบสนองของอากาศยานตามแบบเครื่อง",
-    sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
-    sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
-    allowedFilters: ["site"], kind: "table", size: "wide",
-    sql: `SELECT TYPE AS "Type", MCH_NAME AS "Description", MCH_CODE AS "Aircraft",
-        CF$_C_STATUS AS "Status", CF$_C_RESPONSE AS "Response"
-      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
-      WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site
-      ORDER BY TYPE, CF$_C_STATUS, MCH_NAME FETCH FIRST 30 ROWS ONLY`,
+      ORDER BY PLANNED_DATE`,
   },
   {
     id: "maintenance.mmr-planned",
@@ -244,7 +130,7 @@ const maintenance: MetricDefinition[] = [
       FROM MAINT_MATERIAL_REQUISITION_UIV
       WHERE STATE = 'Planned'
         AND IFSAPP.WORK_ORDER_API.Get_Contract(WO_NO) = :site
-      ORDER BY DUE_DATE FETCH FIRST 30 ROWS ONLY`,
+      ORDER BY DUE_DATE`,
   },
   {
     id: "maintenance.mmr-released",
@@ -259,7 +145,27 @@ const maintenance: MetricDefinition[] = [
       FROM MAINT_MATERIAL_REQUISITION_CFV
       WHERE STATE = 'Released'
         AND IFSAPP.WORK_ORDER_API.Get_Contract(WO_NO) = :site
-      ORDER BY DUE_DATE FETCH FIRST 30 ROWS ONLY`,
+      ORDER BY DUE_DATE`,
+  },
+  {
+    id: "maintenance.pm-500-hours",
+    dashboard: "maintenance",
+    title: "PM ของ Aircraft ที่ครบกำหนดใน 500 Hrs",
+    description: "PM แบบ Condition ที่เหลือชั่วโมงต่ำกว่า 500 ชั่วโมง",
+    sourceElementId: "1ea50eb2-110a-477b-9d65-d5ec000c26fb",
+    sourceDataSourceId: "02d8b1ef-72d9-498a-8a2e-e87314a5c9b3",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT PM_ACTION_CALENDAR_PLAN_API.Get_Mch_Code(PM_NO, PM_REVISION) AS "Aircraft",
+        PM_NO AS "PM No", CF$_C_ACTION AS "Action", PLANNED_VALUE AS "Planned",
+        CF$_C_TSO AS "TSO", CF$_C_REMAIN AS "Remaining", WO_NO AS "WO No"
+      FROM PM_ACTION_CALENDAR_PLAN_CFV
+      WHERE CF$_C_REMAIN < 500
+        AND (WORK_ORDER_API.Get_State(WO_NO) NOT IN ('Canceled','Finished') OR WO_NO IS NULL)
+        AND PM_ACTION_API.Get_State(PM_NO, PM_REVISION) <> 'Obsolete'
+        AND GENERATION_TYPE = 'Condition' AND PLANNED_VALUE <> 0
+        AND CF$_C_WORK_TYPE IN ('WPK','ALS')
+        AND PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) = :site
+      ORDER BY CF$_C_REMAIN`,
   },
   {
     id: "maintenance.new-part-update",
@@ -273,13 +179,24 @@ const maintenance: MetricDefinition[] = [
         SERIAL_NO AS "Serial No", STATE AS "Status", CF$_C_SERIAL_TSN AS "TSN",
         CF$_C_SERIAL_TSO AS "TSO", DATE_CREATED AS "Date Created", DATE_CHANGED AS "Date Changed",
         WARRANTY_EXPIRES AS "Warranty Expires"
-      FROM (
-        SELECT PART_NO, SERIAL_NO, STATE, CF$_C_SERIAL_TSN, CF$_C_SERIAL_TSO,
-            DATE_CREATED, DATE_CHANGED, WARRANTY_EXPIRES
-        FROM PART_SERIAL_CATALOG_CFV
-        WHERE CF$_C_SERIAL_TSN IS NULL AND CF$_C_SERIAL_TSO IS NULL
-          AND ROWNUM <= 30
-      )`,
+      FROM PART_SERIAL_CATALOG_CFV
+      WHERE CF$_C_SERIAL_TSN IS NULL AND CF$_C_SERIAL_TSO IS NULL
+      ORDER BY DATE_CREATED DESC`,
+  },
+  {
+    id: "maintenance.component-life",
+    dashboard: "maintenance",
+    title: "Component เหลืออายุใช้งานน้อยกว่า 100 ชั่วโมง: Life Limits",
+    description: "Life Limit, TSO และ Remaining Hours ของ Component",
+    sourceElementId: "fcacbaf4-45a0-49a3-b6e9-11fb11e1a668",
+    sourceDataSourceId: "7bfbf38a-7bcc-4826-85db-7ecdad28eed8",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT MCH_CODE AS "Component", CF$_C_LIFELIMIT AS "Life Limit",
+        CF$_C_TSO AS "TSO", CF$_C_REMAINHR AS "Remaining Hours", SUP_MCH_CODE AS "Aircraft"
+      FROM EQUIPMENT_SERIAL_UIV_CFV
+      WHERE CONTRACT = :site AND CF$_C_REMAINHR < 100 AND CF$_C_AVL = 'Yes'
+        AND OPERATIONAL_STATUS <> 'Scrapped' AND SUP_MCH_CODE NOT IN ('0000','XXXX')
+      ORDER BY CF$_C_REMAINHR`,
   },
   {
     id: "maintenance.component-midlife",
@@ -295,7 +212,7 @@ const maintenance: MetricDefinition[] = [
       WHERE CONTRACT = :site AND CF$_C_MIDREMAINHR > -1000 AND CF$_C_MIDREMAINHR < 100
         AND CF$_C_AVL = 'Yes' AND OPERATIONAL_STATUS <> 'Scrapped'
         AND SUP_MCH_CODE NOT IN ('0000','XXXX')
-      ORDER BY CF$_C_MIDREMAINHR FETCH FIRST 20 ROWS ONLY`,
+      ORDER BY CF$_C_MIDREMAINHR`,
   },
   {
     id: "maintenance.component-calendar-due",
@@ -309,10 +226,10 @@ const maintenance: MetricDefinition[] = [
         CF$_C_CAL_DUE_DATE AS "Due Date", CF$_C_CAL_DUE_DATE - SYSDATE AS "Days Remaining",
         SUP_MCH_CODE AS "Aircraft"
       FROM EQUIPMENT_SERIAL_UIV_CFV
-      WHERE CONTRACT = :site AND CF$_C_CAL_DUE_DATE - SYSDATE BETWEEN 0 AND 180
+      WHERE CONTRACT = :site AND CF$_C_CAL_DUE_DATE - SYSDATE < 180
         AND CF$_C_AVL = 'Yes' AND OPERATIONAL_STATUS <> 'Scrapped'
         AND SUP_MCH_CODE NOT IN ('0000','XXXX')
-      ORDER BY CF$_C_CAL_DUE_DATE FETCH FIRST 20 ROWS ONLY`,
+      ORDER BY CF$_C_CAL_DUE_DATE`,
   },
 ];
 

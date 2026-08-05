@@ -19,7 +19,7 @@
 
 TPAD IFS Executive Dashboard เป็นศูนย์กลางข้อมูลสำหรับผู้บริหารและหัวหน้างานของกองบินตำรวจ เพื่อดูภาพรวมภารกิจจาก IFS ERP ในมุมที่นำไปใช้ตัดสินใจได้ทันที โดยเชื่อมต่อข้อมูลจาก Oracle IFS แบบอ่านอย่างเดียว และใช้ฐานข้อมูล MariaDB สำหรับการยืนยันตัวตน สิทธิ์ผู้ใช้ session เนื้อหาข่าว/บทความ ประวัติการสนทนา และ audit log
 
-ระบบประกอบด้วย Dashboard Summary และ Dashboard 4 ด้าน ได้แก่ งานช่างและวางแผนการซ่อม งบประมาณ คลังพัสดุ และจัดซื้อ/จ้างซ่อม รวม 60 metrics/cards ที่นำเสนอเป็น KPI, summary, chart และตารางรายละเอียด มีตัวกรองตามบริบทงาน การเปิดดูรายละเอียด การ refresh และกลไก cache พร้อมแสดงข้อมูลล่าสุดที่ยังใช้ได้เมื่อ Oracle ไม่ตอบสนอง นอกจากนี้มีผู้ช่วย IFS ที่ตอบโดยอ้างอิงเฉพาะ metric ที่อนุญาตและแสดง Card ต้นทางเพื่อให้ตรวจสอบย้อนกลับได้
+ระบบประกอบด้วย Dashboard Summary และ Dashboard 4 ด้าน ได้แก่ งานช่างและวางแผนการซ่อม งบประมาณ คลังพัสดุ และจัดซื้อ/จ้างซ่อม รวม 56 metrics/cards ที่นำเสนอเป็น KPI, summary, chart และตารางรายละเอียด มีตัวกรองตามบริบทงาน การเปิดดูรายละเอียด การ refresh และกลไก cache พร้อมแสดงข้อมูลล่าสุดที่ยังใช้ได้เมื่อ Oracle ไม่ตอบสนอง นอกจากนี้มีผู้ช่วย IFS ที่ตอบโดยอ้างอิงเฉพาะ metric ที่อนุญาตและแสดง Card ต้นทางเพื่อให้ตรวจสอบย้อนกลับได้
 
 ข้อเสนอฉบับนี้มีเป้าหมายยกระดับ MVP ให้เป็น Pilot ที่ผ่านการตรวจสอบความถูกต้องกับผู้ใช้จริง มี security baseline ชัดเจน มีคู่มือและแผนดูแลระบบ และพร้อมขยายเป็นระบบ Production ภายใต้การอนุมัติของเจ้าของข้อมูลและหน่วยงานเทคโนโลยีสารสนเทศ
 
@@ -143,12 +143,12 @@ TPAD IFS Executive Dashboard เป็นศูนย์กลางข้อม
 
 | Dashboard | จำนวน | ขอบเขตข้อมูลหลัก |
 | --- | ---: | --- |
-| Maintenance | 19 | สถานะอากาศยาน, WO, MMR, PM, grounded aircraft, new part และ component life/calendar |
+| Maintenance | 15 | สถานะอากาศยาน, WO, MMR, PM, grounded aircraft, new part และ component life/calendar |
 | Budget | 9 | งบตั้งต้น, actual, committed, balance, utilization, cost element, invoice และ PO |
 | Inventory | 14 | MR/MMR, PO รับเข้า, pick list, turn-in, unserviceable, expiry, low stock และรายการรอคลัง |
 | Procurement | 13 | RFQ, PR approval, PO, overdue, delivery, supplier quality/reliability และ trend |
 | Summary | 5 | ภาพรวมงบประมาณ ความพร้อมอากาศยาน และ PR Workflow |
-| **รวม** | **60** | **metrics/cards ใน catalog ปัจจุบัน** |
+| **รวม** | **56** | **metrics/cards ใน catalog ปัจจุบัน** |
 
 ### FR-05 Cache และความทนทาน
 
@@ -309,7 +309,7 @@ MariaDB ใช้เก็บข้อมูลที่ไม่ควรเข
 
 - ผู้ใช้ที่ active login ได้ และผู้ใช้ที่ปิดใช้งานไม่สามารถใช้งานต่อได้
 - Admin และ Read-only เห็นเมนูและทำ action ได้ตามสิทธิ์
-- Dashboard Summary และทั้ง 4 ด้านเปิดได้และแสดง metric ที่ได้รับอนุมัติครบ 60 รายการ หรือมีรายการยกเว้นที่ลงนามรับทราบ
+- Dashboard Summary และทั้ง 4 ด้านเปิดได้และแสดง metric ที่ได้รับอนุมัติครบ 56 รายการ หรือมีรายการยกเว้นที่ลงนามรับทราบ
 - ตัวเลขตัวอย่างจากแต่ละ Card ตรงกับ Oracle IFS baseline ตาม tolerance ที่เจ้าของข้อมูลกำหนด
 - Filter สำคัญ เช่น Site, Project, Fiscal Year, Buyer และ Supplier ให้ผลลัพธ์ถูกต้อง
 - Oracle ไม่รับคำสั่ง INSERT/UPDATE/DELETE/DDL จากระบบ และ smoke test ผ่าน
