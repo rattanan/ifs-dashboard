@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, isNull, lte, or } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { articleGroups, contents, users } from "@/lib/db/schema";
+import { normalizeContentBody } from "@/lib/content-body";
 
 export async function getPublishedContents(limit = 12) {
   const now = new Date();
@@ -50,7 +51,8 @@ export async function getPublishedContentBySlug(slug: string) {
     .innerJoin(users, eq(contents.authorId, users.id))
     .where(and(eq(contents.slug, slug), eq(contents.status, "PUBLISHED")))
     .limit(1);
-  return rows[0] ?? null;
+  const item = rows[0];
+  return item ? { ...item, bodyJson: normalizeContentBody(item.bodyJson) } : null;
 }
 
 export async function getArticleGroups() {
