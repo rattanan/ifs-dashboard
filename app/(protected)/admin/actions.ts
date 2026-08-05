@@ -2,12 +2,15 @@
 
 import { hash } from "bcryptjs";
 import { and, count, eq, ne } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { writeAudit } from "@/lib/audit";
+import { SESSION_COOKIE } from "@/lib/auth/constants";
 import { requireAdmin } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { articleGroups, contents, media, sessions, users } from "@/lib/db/schema";
@@ -47,7 +50,14 @@ export async function resetPasswordAction(formData: FormData) {
   const id = z.string().uuid().parse(formData.get("id"));
   const password = z.string().min(12).max(128).parse(formData.get("password"));
   await getDb().update(users).set({ passwordHash: await hash(password, 12), updatedAt: new Date() }).where(eq(users.id, id));
-  await getDb().delete(sessions).where(eq(sessions.userId, id));
+  if (id === actor.id) {
+    // Preserve only the session performing the reset; all other sessions are revoked.
+    const token = (await cookies()).get(SESSION_COOKIE)?.value;
+    const tokenHash = token ? createHash("sha256").update(token).digest("hex") : null;
+    if (tokenHash) await getDb().delete(sessions).where(and(eq(sessions.userId, id), ne(sessions.tokenHash, tokenHash)));
+  } else {
+    await getDb().delete(sessions).where(eq(sessions.userId, id));
+  }
   await writeAudit({ actorId: actor.id, action: "USER_PASSWORD_RESET", entityType: "USER", entityId: id });
   revalidatePath("/admin/users");
 }

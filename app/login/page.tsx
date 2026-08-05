@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { Activity, Gauge, Plane, ShieldCheck } from "lucide-react";
+import { redirect } from "next/navigation";
 import { BrandMark } from "@/components/brand-mark";
 import { LoginForm } from "@/components/login-form";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "เข้าสู่ระบบ" };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  if (await getCurrentUser()) redirect("/");
   return (
     <main className="grid min-h-screen bg-slate-950 lg:grid-cols-[1.25fr_0.75fr]">
       <section className="aviation-glow surface-grid relative hidden min-h-screen overflow-hidden p-10 lg:flex lg:flex-col lg:justify-between xl:p-14">
