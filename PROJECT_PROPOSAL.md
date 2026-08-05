@@ -19,7 +19,7 @@
 
 TPAD IFS Executive Dashboard เป็นศูนย์กลางข้อมูลสำหรับผู้บริหารและหัวหน้างานของกองบินตำรวจ เพื่อดูภาพรวมภารกิจจาก IFS ERP ในมุมที่นำไปใช้ตัดสินใจได้ทันที โดยเชื่อมต่อข้อมูลจาก Oracle IFS แบบอ่านอย่างเดียว และใช้ฐานข้อมูล MariaDB สำหรับการยืนยันตัวตน สิทธิ์ผู้ใช้ session เนื้อหาข่าว/บทความ ประวัติการสนทนา และ audit log
 
-ระบบประกอบด้วย Dashboard 4 ด้าน ได้แก่ งานช่างและวางแผนการซ่อม งบประมาณ คลังพัสดุ และจัดซื้อ/จ้างซ่อม รวม 43 metrics/cards ที่นำเสนอเป็น KPI, summary, chart และตารางรายละเอียด มีตัวกรองตามบริบทงาน การเปิดดูรายละเอียด การ refresh และกลไก cache พร้อมแสดงข้อมูลล่าสุดที่ยังใช้ได้เมื่อ Oracle ไม่ตอบสนอง นอกจากนี้มีผู้ช่วย IFS ที่ตอบโดยอ้างอิงเฉพาะ metric ที่อนุญาตและแสดง Card ต้นทางเพื่อให้ตรวจสอบย้อนกลับได้
+ระบบประกอบด้วย Dashboard 4 ด้าน ได้แก่ งานช่างและวางแผนการซ่อม งบประมาณ คลังพัสดุ และจัดซื้อ/จ้างซ่อม รวม 55 metrics/cards ที่นำเสนอเป็น KPI, summary, chart และตารางรายละเอียด มีตัวกรองตามบริบทงาน การเปิดดูรายละเอียด การ refresh และกลไก cache พร้อมแสดงข้อมูลล่าสุดที่ยังใช้ได้เมื่อ Oracle ไม่ตอบสนอง นอกจากนี้มีผู้ช่วย IFS ที่ตอบโดยอ้างอิงเฉพาะ metric ที่อนุญาตและแสดง Card ต้นทางเพื่อให้ตรวจสอบย้อนกลับได้
 
 ข้อเสนอฉบับนี้มีเป้าหมายยกระดับ MVP ให้เป็น Pilot ที่ผ่านการตรวจสอบความถูกต้องกับผู้ใช้จริง มี security baseline ชัดเจน มีคู่มือและแผนดูแลระบบ และพร้อมขยายเป็นระบบ Production ภายใต้การอนุมัติของเจ้าของข้อมูลและหน่วยงานเทคโนโลยีสารสนเทศ
 
@@ -143,11 +143,11 @@ TPAD IFS Executive Dashboard เป็นศูนย์กลางข้อม
 
 | Dashboard | จำนวน | ขอบเขตข้อมูลหลัก |
 | --- | ---: | --- |
-| Maintenance | 13 | สถานะอากาศยาน, WO, MMR, PM, grounded aircraft, component life และ PM calendar |
+| Maintenance | 19 | สถานะอากาศยาน, WO, MMR, PM, grounded aircraft, new part และ component life/calendar |
 | Budget | 9 | งบตั้งต้น, actual, committed, balance, utilization, cost element, invoice และ PO |
-| Inventory | 9 | MR/MMR, PO รับเข้า, turn-in, unserviceable, expiry, low stock และรายการรอคลัง |
-| Procurement | 12 | RFQ, PR, PO, overdue, delivery, supplier quality/reliability และ trend |
-| **รวม** | **43** | **metrics/cards ใน catalog ปัจจุบัน** |
+| Inventory | 14 | MR/MMR, PO รับเข้า, pick list, turn-in, unserviceable, expiry, low stock และรายการรอคลัง |
+| Procurement | 13 | RFQ, PR approval, PO, overdue, delivery, supplier quality/reliability และ trend |
+| **รวม** | **55** | **metrics/cards ใน catalog ปัจจุบัน** |
 
 ### FR-05 Cache และความทนทาน
 
@@ -282,7 +282,7 @@ MariaDB ใช้เก็บข้อมูลที่ไม่ควรเข
 | --- | --- | --- | --- |
 | 1. Discovery และ Data Contract | สัปดาห์ 1 | ยืนยันผู้ใช้, metric, นิยามตัวเลข, filter, Site, timezone และสิทธิ์ | Approved requirement และ metric sign-off plan |
 | 2. Environment และ Security Baseline | สัปดาห์ 2 | ตั้งค่า DB/Oracle/network, secrets, migration, session policy, logging | UAT environment และ security checklist รอบแรก |
-| 3. Dashboard Validation | สัปดาห์ 3–4 | ทดสอบ 43 metrics, เทียบตัวเลขกับ IFS, tuning query และ filter | Dashboard baseline report และ defect list |
+| 3. Dashboard Validation | สัปดาห์ 3–4 | ทดสอบ 55 metrics, เทียบตัวเลขกับ IFS, tuning query และ filter | Dashboard baseline report และ defect list |
 | 4. Content, Admin และ AI Assistant | สัปดาห์ 5 | ทดสอบ RBAC, content workflow, media, audit และ chatbot intent/source | Admin/content acceptance และ chatbot test set |
 | 5. Performance, Security และ UAT | สัปดาห์ 6–7 | load test, failure test, stale cache, security review และ user acceptance | UAT sign-off หรือรายการแก้ไขรอบสุดท้าย |
 | 6. Pilot Go-live และ Handover | สัปดาห์ 8 | deploy, seed admin, training, runbook, support window | Pilot release และ handover package |
@@ -308,7 +308,7 @@ MariaDB ใช้เก็บข้อมูลที่ไม่ควรเข
 
 - ผู้ใช้ที่ active login ได้ และผู้ใช้ที่ปิดใช้งานไม่สามารถใช้งานต่อได้
 - Admin และ Read-only เห็นเมนูและทำ action ได้ตามสิทธิ์
-- Dashboard ทั้ง 4 เปิดได้และแสดง metric ที่ได้รับอนุมัติครบ 43 รายการ หรือมีรายการยกเว้นที่ลงนามรับทราบ
+- Dashboard ทั้ง 4 เปิดได้และแสดง metric ที่ได้รับอนุมัติครบ 55 รายการ หรือมีรายการยกเว้นที่ลงนามรับทราบ
 - ตัวเลขตัวอย่างจากแต่ละ Card ตรงกับ Oracle IFS baseline ตาม tolerance ที่เจ้าของข้อมูลกำหนด
 - Filter สำคัญ เช่น Site, Project, Fiscal Year, Buyer และ Supplier ให้ผลลัพธ์ถูกต้อง
 - Oracle ไม่รับคำสั่ง INSERT/UPDATE/DELETE/DDL จากระบบ และ smoke test ผ่าน
@@ -442,7 +442,7 @@ MariaDB ใช้เก็บข้อมูลที่ไม่ควรเข
 - [ ] Oracle read-only account และ network path ผ่านการทดสอบ
 - [ ] MariaDB migration/backup/restore ผ่านการทดสอบ
 - [ ] User/role matrix และ session policy ได้รับการอนุมัติ
-- [ ] 43 metrics ผ่าน baseline/UAT หรือมี waiver ที่ลงนาม
+- [ ] 55 metrics ผ่าน baseline/UAT หรือมี waiver ที่ลงนาม
 - [ ] Query guard, timeout, row limit และ rollback ผ่าน security review
 - [ ] Chatbot test set ผ่าน และทุกคำตอบมี source Card
 - [ ] Content/media upload ผ่าน file validation และ backup test

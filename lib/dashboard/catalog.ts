@@ -11,10 +11,11 @@ const maintenance: MetricDefinition[] = [
     allowedFilters: ["site"],
     kind: "donut",
     size: "lg",
-    sql: `SELECT TYPE || ' · ' || CF$_C_CONDITION AS "label", COUNT(*) AS "value"
-      FROM EQUIPMENT_FUNCTIONAL_CFV
-      WHERE MCH_TYPE = 'AIRCRAFT' AND CF$_C_CONDITION <> 'อื่น ๆ' AND CONTRACT = :site
-      GROUP BY TYPE, CF$_C_CONDITION ORDER BY COUNT(*) DESC`,
+    sql: `SELECT TYPE || ' · ' || CF$_C_STATUS AS "label", COUNT(CF$_C_STATUS) AS "value"
+      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
+      WHERE CF$_C_STATUS IS NOT NULL AND CF$_C_STATUS <> 'xxx'
+        AND MCH_TYPE = 'AIRCRAFT' AND CONTRACT = :site
+      GROUP BY TYPE, CF$_C_STATUS ORDER BY COUNT(CF$_C_STATUS) DESC`,
   },
   {
     id: "maintenance.wo-status",
@@ -91,9 +92,13 @@ const maintenance: MetricDefinition[] = [
     valueLabel: "รายการ",
     sql: `SELECT COUNT(*) AS "value"
       FROM PM_ACTION_CALENDAR_PLAN_CFV
-      WHERE PLANNED_DATE BETWEEN SYSDATE AND ADD_MONTHS(SYSDATE, 6)
+      WHERE PLANNED_DATE BETWEEN SYSDATE AND SYSDATE + 180
         AND (WORK_ORDER_API.Get_State(WO_NO) NOT IN ('Canceled','Finished') OR WO_NO IS NULL)
-        AND PM_ACTION_API.Get_State(PM_NO, PM_REVISION) <> 'Obsolete'`,
+        AND PM_ACTION_API.Get_State(PM_NO, PM_REVISION) <> 'Obsolete'
+        AND GENERATION_TYPE = 'Calendar'
+        AND PM_ACTION_API.Get_Connection_Type(PM_NO, PM_REVISION) = 'EQUIPMENT'
+        AND CF$_C_WORK_TYPE IN ('WPK')
+        AND PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) = :site`,
   },
   {
     id: "maintenance.pm-500-hours",
@@ -105,12 +110,17 @@ const maintenance: MetricDefinition[] = [
     allowedFilters: ["site"],
     kind: "table",
     size: "wide",
-    sql: `SELECT PM_NO AS "PM No", PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) AS "Site", PLANNED_VALUE AS "Planned",
-        LAST_MEASUREMENT AS "Last Value", CF$_C_REMAIN AS "Remain", WO_NO AS "WO No"
+    sql: `SELECT PM_ACTION_CALENDAR_PLAN_API.Get_Mch_Code(PM_NO, PM_REVISION) AS "Aircraft",
+        PM_NO AS "PM No", CF$_C_ACTION AS "Action", PLANNED_VALUE AS "Planned",
+        CF$_C_TSO AS "TSO", CF$_C_REMAIN AS "Remaining", WO_NO AS "WO No"
       FROM PM_ACTION_CALENDAR_PLAN_CFV
       WHERE CF$_C_REMAIN < 500
         AND PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) = :site
+        AND (WORK_ORDER_API.Get_State(WO_NO) NOT IN ('Canceled','Finished') OR WO_NO IS NULL)
+        AND PM_ACTION_API.Get_State(PM_NO, PM_REVISION) <> 'Obsolete'
         AND GENERATION_TYPE = 'Condition'
+        AND PLANNED_VALUE <> 0
+        AND CF$_C_WORK_TYPE IN ('WPK','ALS')
       ORDER BY CF$_C_REMAIN FETCH FIRST 20 ROWS ONLY`,
   },
   {
@@ -126,7 +136,7 @@ const maintenance: MetricDefinition[] = [
     sql: `SELECT MCH_CODE AS "Component", SUP_MCH_CODE AS "Aircraft",
         CF$_C_LIFELIMIT AS "Life Limit", CF$_C_TSO AS "TSO", CF$_C_REMAINHR AS "Remain Hr"
       FROM EQUIPMENT_SERIAL_UIV_CFV
-      WHERE CF$_C_REMAINHR < 100 AND CF$_C_AVL = 'Yes'
+      WHERE CONTRACT = :site AND CF$_C_REMAINHR < 100 AND CF$_C_AVL = 'Yes'
         AND OPERATIONAL_STATUS <> 'Scrapped' AND SUP_MCH_CODE NOT IN ('0000','XXXX')
       ORDER BY CF$_C_REMAINHR FETCH FIRST 20 ROWS ONLY`,
   },
@@ -138,10 +148,10 @@ const maintenance: MetricDefinition[] = [
     sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
     sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
     allowedFilters: ["site"], kind: "table", size: "wide",
-    sql: `SELECT MCH_CODE AS "Aircraft", MCH_NAME AS "Description", TYPE AS "Type",
-        SERIAL_NO AS "Serial No", CF$_C_CONDITION AS "Condition"
+    sql: `SELECT TYPE AS "Type", MCH_NAME AS "Description", MCH_CODE AS "Aircraft",
+        CF$_C_CONDITION AS "Condition", MCH_TYPE AS "Machine Type", SERIAL_NO AS "Serial No"
       FROM EQUIPMENT_FUNCTIONAL_CFV
-      WHERE MCH_TYPE = 'AIRCRAFT' AND CONTRACT = :site
+      WHERE MCH_TYPE = 'AIRCRAFT' AND CF$_C_CONDITION <> 'อื่น ๆ' AND CONTRACT = :site
       ORDER BY TYPE, MCH_CODE FETCH FIRST 30 ROWS ONLY`,
   },
   {
@@ -151,11 +161,12 @@ const maintenance: MetricDefinition[] = [
     description: "WO ที่ยังเปิด แยกตามทะเบียนอากาศยาน",
     sourceElementId: "9e5e5e5a-93e8-46f6-93d2-79582c4d31c6",
     sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
-    allowedFilters: ["site"], kind: "bar", size: "lg",
-    sql: `SELECT NVL(MCH_CODE, 'ไม่ระบุ') AS "label", COUNT(WO_NO) AS "value"
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT NVL(MCH_CODE, 'ไม่ระบุ') AS "Aircraft", NVL(WORK_TYPE_ID, 'ไม่ระบุ') AS "Work Type",
+        COUNT(WORK_TYPE_ID) AS "WO Count"
       FROM ACTIVE_SEPARATE_OVERVIEW
       WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
-      GROUP BY MCH_CODE ORDER BY COUNT(WO_NO) DESC FETCH FIRST 12 ROWS ONLY`,
+      GROUP BY MCH_CODE, WORK_TYPE_ID ORDER BY MCH_CODE, WORK_TYPE_ID FETCH FIRST 100 ROWS ONLY`,
   },
   {
     id: "maintenance.wo-packages",
@@ -194,12 +205,114 @@ const maintenance: MetricDefinition[] = [
     sourceElementId: "04e0fb2b-2bc7-4bf4-913b-ef38e95e0ab3",
     sourceDataSourceId: "1a10310c-bf94-400e-80c0-65ab768021c8",
     allowedFilters: ["site"], kind: "table", size: "wide",
-    sql: `SELECT PM_NO AS "PM No", PM_ACTION_CALENDAR_PLAN_API.Get_Mch_Code(PM_NO, PM_REVISION) AS "Aircraft",
-        PLANNED_DATE AS "Planned Date", CF$_C_ACTION AS "Action", WO_NO AS "WO No"
+    sql: `SELECT PM_ACTION_CALENDAR_PLAN_API.Get_Mch_Code(PM_NO, PM_REVISION) AS "Aircraft",
+        PM_NO AS "PM No", CF$_C_ACTION AS "Action", PLANNED_DATE AS "Planned Date", WO_NO AS "WO No",
+        GENERATION_DATE AS "Generation Date"
       FROM PM_ACTION_CALENDAR_PLAN_CFV
-      WHERE PLANNED_DATE BETWEEN SYSDATE AND ADD_MONTHS(SYSDATE, 6)
-        AND GENERATION_TYPE = 'Calendar' AND PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) = :site
+      WHERE PLANNED_DATE BETWEEN SYSDATE AND SYSDATE + 180
+        AND (WORK_ORDER_API.Get_State(WO_NO) NOT IN ('Canceled','Finished') OR WO_NO IS NULL)
+        AND PM_ACTION_API.Get_State(PM_NO, PM_REVISION) <> 'Obsolete'
+        AND GENERATION_TYPE = 'Calendar'
+        AND PM_ACTION_API.Get_Connection_Type(PM_NO, PM_REVISION) = 'EQUIPMENT'
+        AND CF$_C_WORK_TYPE IN ('WPK')
+        AND PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) = :site
       ORDER BY PLANNED_DATE FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.aircraft-readiness-list",
+    dashboard: "maintenance",
+    title: "รายการสถานะอากาศยาน",
+    description: "สถานะและการตอบสนองของอากาศยานตามแบบเครื่อง",
+    sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
+    sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT TYPE AS "Type", MCH_NAME AS "Description", MCH_CODE AS "Aircraft",
+        CF$_C_STATUS AS "Status", CF$_C_RESPONSE AS "Response"
+      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
+      WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site
+      ORDER BY TYPE, CF$_C_STATUS, MCH_NAME FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.mmr-planned",
+    dashboard: "maintenance",
+    title: "รายการใบเบิก MMR ที่รอการอนุมัติ",
+    description: "Maintenance Material Requisition ที่อยู่ในสถานะ Planned",
+    sourceElementId: "143f15e1-3254-485d-8b0b-42f2a5e7a886",
+    sourceDataSourceId: "a6a1a57c-9d91-4f88-ae2d-ce30a4851421",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT MAINT_MATERIAL_ORDER_NO AS "MMR No", WO_NO AS "WO No", DUE_DATE AS "Due Date"
+      FROM MAINT_MATERIAL_REQUISITION_UIV
+      WHERE STATE = 'Planned'
+        AND IFSAPP.WORK_ORDER_API.Get_Contract(WO_NO) = :site
+      ORDER BY DUE_DATE FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.mmr-released",
+    dashboard: "maintenance",
+    title: "รายการใบเบิก MMR ที่อนุมัติแล้ว",
+    description: "Maintenance Material Requisition ที่อยู่ในสถานะ Released",
+    sourceElementId: "143f15e1-3254-485d-8b0b-42f2a5e7a886",
+    sourceDataSourceId: "a6a1a57c-9d91-4f88-ae2d-ce30a4851421",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT MAINT_MATERIAL_ORDER_NO AS "MMR No", WO_NO AS "WO No", DUE_DATE AS "Due Date",
+        CF$_RECEIVE_BY AS "Receive By", CF$_WH_STATUS AS "Warehouse Status"
+      FROM MAINT_MATERIAL_REQUISITION_CFV
+      WHERE STATE = 'Released'
+        AND IFSAPP.WORK_ORDER_API.Get_Contract(WO_NO) = :site
+      ORDER BY DUE_DATE FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.new-part-update",
+    dashboard: "maintenance",
+    title: "New Part Update",
+    description: "Part serial ที่ยังไม่มีค่า TSN และ TSO",
+    sourceElementId: "1ea50eb2-110a-477b-9d65-d5ec000c26fb",
+    sourceDataSourceId: "02d8b1ef-72d9-498a-8a2e-e87314a5c9b3",
+    allowedFilters: [], kind: "table", size: "wide",
+    sql: `SELECT PART_NO AS "Part No", UPPER(PART_CATALOG_API.Get_Description(PART_NO)) AS "Description",
+        SERIAL_NO AS "Serial No", STATE AS "Status", CF$_C_SERIAL_TSN AS "TSN",
+        CF$_C_SERIAL_TSO AS "TSO", DATE_CREATED AS "Date Created", DATE_CHANGED AS "Date Changed",
+        WARRANTY_EXPIRES AS "Warranty Expires"
+      FROM (
+        SELECT PART_NO, SERIAL_NO, STATE, CF$_C_SERIAL_TSN, CF$_C_SERIAL_TSO,
+            DATE_CREATED, DATE_CHANGED, WARRANTY_EXPIRES
+        FROM PART_SERIAL_CATALOG_CFV
+        WHERE CF$_C_SERIAL_TSN IS NULL AND CF$_C_SERIAL_TSO IS NULL
+          AND ROWNUM <= 30
+      )`,
+  },
+  {
+    id: "maintenance.component-midlife",
+    dashboard: "maintenance",
+    title: "Component ใกล้ครบ Mid Life",
+    description: "ชิ้นส่วนที่เหลืออายุ Mid Life อยู่ในช่วงต่ำกว่า 100 ชั่วโมง",
+    sourceElementId: "fcacbaf4-45a0-49a3-b6e9-11fb11e1a668",
+    sourceDataSourceId: "7bfbf38a-7bcc-4826-85db-7ecdad28eed8",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT MCH_CODE AS "Component", CF$_C_MIDLIFELIMIT AS "Mid Life Limit",
+        CF$_C_TSO AS "TSO", CF$_C_MIDREMAINHR AS "Mid Remain Hr", SUP_MCH_CODE AS "Aircraft"
+      FROM EQUIPMENT_SERIAL_UIV_CFV
+      WHERE CONTRACT = :site AND CF$_C_MIDREMAINHR > -1000 AND CF$_C_MIDREMAINHR < 100
+        AND CF$_C_AVL = 'Yes' AND OPERATIONAL_STATUS <> 'Scrapped'
+        AND SUP_MCH_CODE NOT IN ('0000','XXXX')
+      ORDER BY CF$_C_MIDREMAINHR FETCH FIRST 20 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.component-calendar-due",
+    dashboard: "maintenance",
+    title: "Component ถึงกำหนดตาม Calendar",
+    description: "ชิ้นส่วนที่มีกำหนดตาม Calendar ภายใน 180 วัน",
+    sourceElementId: "fcacbaf4-45a0-49a3-b6e9-11fb11e1a668",
+    sourceDataSourceId: "7bfbf38a-7bcc-4826-85db-7ecdad28eed8",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT MCH_CODE AS "Component", CF$_C_CAL_PLAN AS "Calendar Plan",
+        CF$_C_CAL_DUE_DATE AS "Due Date", CF$_C_CAL_DUE_DATE - SYSDATE AS "Days Remaining",
+        SUP_MCH_CODE AS "Aircraft"
+      FROM EQUIPMENT_SERIAL_UIV_CFV
+      WHERE CONTRACT = :site AND CF$_C_CAL_DUE_DATE - SYSDATE BETWEEN 0 AND 180
+        AND CF$_C_AVL = 'Yes' AND OPERATIONAL_STATUS <> 'Scrapped'
+        AND SUP_MCH_CODE NOT IN ('0000','XXXX')
+      ORDER BY CF$_C_CAL_DUE_DATE FETCH FIRST 20 ROWS ONLY`,
   },
 ];
 
@@ -371,13 +484,14 @@ const inventory: MetricDefinition[] = [
     sql: `SELECT NVL(CF$_C_WH_STATUS, 'New') AS "label", COUNT(*) AS "value"
       FROM MAINT_MATERIAL_REQ_LINE_CFV
       WHERE WORK_ORDER_API.Get_Contract(WO_NO) = :site
+        AND MAINT_MATERIAL_REQUISITION_API.Get_State(MAINT_MATERIAL_ORDER_NO) = 'Released'
       GROUP BY CF$_C_WH_STATUS ORDER BY COUNT(*) DESC`,
   },
   {
     id: "inventory.po-receipt",
     dashboard: "inventory",
-    title: "PO รอตรวจและรับเข้าคลัง",
-    description: "สถานะการตรวจรับพัสดุจาก Purchase Order",
+    title: "PO รอตรวจรับ",
+    description: "Purchase Order ที่อยู่ในสถานะ To be Inspected",
     sourceElementId: "040966dc-5dab-4687-9051-6777c8fe239c",
     sourceDataSourceId: "93f25d50-9730-4c58-a319-d29efe42c0ae",
     allowedFilters: ["site"],
@@ -385,7 +499,7 @@ const inventory: MetricDefinition[] = [
     size: "md",
     sql: `SELECT STATE AS "label", COUNT(*) AS "value"
       FROM RECEIPT_INFO WHERE CONTRACT = :site
-        AND STATE IN ('To be Inspected','To be Received')
+        AND STATE = 'To be Inspected'
       GROUP BY STATE ORDER BY COUNT(*) DESC`,
   },
   {
@@ -447,8 +561,8 @@ const inventory: MetricDefinition[] = [
   {
     id: "inventory.incoming",
     dashboard: "inventory",
-    title: "รายการรอเข้าคลัง",
-    description: "PO receipt ที่อยู่ระหว่างตรวจหรือรอรับเข้า",
+    title: "PO ตรวจเสร็จ รอรับเข้าคลัง",
+    description: "PO receipt ที่อยู่ในสถานะ To be Received",
     sourceElementId: "6972498d-f745-470b-8ff2-718396e778e8",
     sourceDataSourceId: "8f08c7da-1574-4cd0-a8a0-8e8459f31d87",
     allowedFilters: ["site"],
@@ -457,7 +571,7 @@ const inventory: MetricDefinition[] = [
     sql: `SELECT SOURCE_REF1 AS "PO", SOURCE_REF2 AS "Line", INVENTORY_PART AS "Part No",
         INV_QTY_ARRIVED AS "Qty", STATE AS "Status", RECEIPT_NO AS "Receipt"
       FROM RECEIPT_INFO WHERE CONTRACT = :site
-        AND STATE IN ('To be Inspected','To be Received')
+        AND STATE = 'To be Received'
       ORDER BY SOURCE_REF1 FETCH FIRST 30 ROWS ONLY`,
   },
   {
@@ -485,6 +599,85 @@ const inventory: MetricDefinition[] = [
     sql: `SELECT WO_NO AS "WO No", LINE_NO AS "Line", PART_NO AS "Part No", QTY_TO_RETURN AS "To Return",
         QTY_RETURNED AS "Returned", CF$_C_RETURN_STATUS AS "Status", CF$_C_PERSON_MANAGE AS "Owner"
       FROM WORK_ORDER_RETURNS_UIV_CFV WHERE CONTRACT = :site AND CF$_C_RETURN_TYPE = 'Turn In'
+        AND QTY_TO_RETURN - QTY_RETURNED <> 0 AND CF$_STATE_WT <> 'Cancelled'
+      ORDER BY WO_NO FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "inventory.mmr-new",
+    dashboard: "inventory",
+    title: "รายการ MMR line ใหม่",
+    description: "MMR ที่อนุมัติแล้วและอยู่ในสถานะ New",
+    sourceElementId: "53f9bf72-7c31-4cd8-8e6f-123e6019113d",
+    sourceDataSourceId: "4bfa63b9-8656-4eda-9b06-45cefa474e6d",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT PART_NO AS "Part No", MAINT_MATERIAL_ORDER_NO AS "MMR No", LINE_ITEM_NO AS "Line No",
+        WO_NO AS "WO No", PLAN_QTY AS "Plan Qty", CF$_C_WH_STATUS AS "Warehouse Status",
+        CF$_C_PRODUCT_FAMILY AS "Product Family"
+      FROM MAINT_MATERIAL_REQ_LINE_CFV
+      WHERE WORK_ORDER_API.Get_Contract(WO_NO) = :site
+        AND CF$_C_WH_STATUS_DB = (SELECT WAREHOUSE_STATUS_CFP.Encode('NEW') FROM dual)
+        AND MAINT_MATERIAL_REQUISITION_API.Get_State(MAINT_MATERIAL_ORDER_NO) = 'Released'
+      ORDER BY MAINT_MATERIAL_ORDER_NO, LINE_ITEM_NO FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "inventory.mmr-preparing",
+    dashboard: "inventory",
+    title: "รายการ MMR line ที่กำลังจัดเตรียม",
+    description: "MMR ที่อนุมัติแล้วและอยู่ในสถานะ Preparing",
+    sourceElementId: "53f9bf72-7c31-4cd8-8e6f-123e6019113d",
+    sourceDataSourceId: "4bfa63b9-8656-4eda-9b06-45cefa474e6d",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT PART_NO AS "Part No", MAINT_MATERIAL_ORDER_NO AS "MMR No", LINE_ITEM_NO AS "Line No",
+        WO_NO AS "WO No", QTY AS "Qty", CF$_C_WH_STATUS AS "Warehouse Status"
+      FROM MAINT_MATERIAL_REQ_LINE_CFV
+      WHERE WORK_ORDER_API.Get_Contract(WO_NO) = :site
+        AND CF$_C_WH_STATUS_DB = (SELECT WAREHOUSE_STATUS_CFP.Encode('Preparing') FROM dual)
+        AND MAINT_MATERIAL_REQUISITION_API.Get_State(MAINT_MATERIAL_ORDER_NO) = 'Released'
+      ORDER BY MAINT_MATERIAL_ORDER_NO, LINE_ITEM_NO FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "inventory.mmr-waiting-issue",
+    dashboard: "inventory",
+    title: "รายการ MMR line ที่พร้อมเบิก",
+    description: "MMR ที่อนุมัติแล้วและรอจ่ายพัสดุ",
+    sourceElementId: "53f9bf72-7c31-4cd8-8e6f-123e6019113d",
+    sourceDataSourceId: "4bfa63b9-8656-4eda-9b06-45cefa474e6d",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT PART_NO AS "Part No", MAINT_MATERIAL_ORDER_NO AS "MMR No", LINE_ITEM_NO AS "Line No",
+        WO_NO AS "WO No", QTY AS "Qty", CF$_C_WH_STATUS AS "Warehouse Status"
+      FROM MAINT_MATERIAL_REQ_LINE_CFV
+      WHERE WORK_ORDER_API.Get_Contract(WO_NO) = :site
+        AND CF$_C_WH_STATUS_DB = (SELECT WAREHOUSE_STATUS_CFP.Encode('Waiting for Issue') FROM dual)
+        AND MAINT_MATERIAL_REQUISITION_API.Get_State(MAINT_MATERIAL_ORDER_NO) = 'Released'
+      ORDER BY MAINT_MATERIAL_ORDER_NO, LINE_ITEM_NO FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "inventory.pick-list-released",
+    dashboard: "inventory",
+    title: "รายการใบเบิก Maintenance Material Requisition",
+    description: "Pick List ของงานซ่อมที่อยู่ในสถานะ Released",
+    sourceElementId: "6972498d-f745-470b-8ff2-718396e778e8",
+    sourceDataSourceId: "8f08c7da-1574-4cd0-a8a0-8e8459f31d87",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT PICK_LIST_NO AS "Pick List No", PICK_LIST_DESCRIPTION AS "Description",
+        CREATED_BY AS "Created By", PICK_LIST_SOURCE_REF AS "Source Ref", DATE_REQUIRED AS "Date Required"
+      FROM PICK_LIST
+      WHERE CONTRACT = :site
+        AND OBJSTATE = (SELECT PICK_LIST_API.FINITE_STATE_ENCODE__('Released') FROM dual)
+      ORDER BY DATE_REQUIRED FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "inventory.unserviceable-lines",
+    dashboard: "inventory",
+    title: "Unserviceable จาก Work Order",
+    description: "รายการพัสดุชำรุดที่ยังส่งคืนไม่ครบ",
+    sourceElementId: "fa9fbd2d-f573-45f3-8fbf-c44f9b2310b7",
+    sourceDataSourceId: "efa7afbf-240a-4d3d-9a0d-ef7fe7b0cda6",
+    allowedFilters: ["site"], kind: "table", size: "wide",
+    sql: `SELECT WO_NO AS "WO No", LINE_NO AS "Line", PART_NO AS "Part No", QTY_TO_RETURN AS "To Return",
+        QTY_RETURNED AS "Returned", CF$_C_RETURN_STATUS AS "Status", CF$_C_PERSON_MANAGE AS "Owner"
+      FROM WORK_ORDER_RETURNS_UIV_CFV
+      WHERE CONTRACT = :site AND CF$_C_RETURN_TYPE = 'Unserviceable'
         AND QTY_TO_RETURN - QTY_RETURNED <> 0 AND CF$_STATE_WT <> 'Cancelled'
       ORDER BY WO_NO FETCH FIRST 30 ROWS ONLY`,
   },
@@ -679,6 +872,20 @@ const procurement: MetricDefinition[] = [
         AND PURCHASE_BUYER LIKE NVL(:buyer, '%') AND SUPPLIER LIKE NVL(:supplier, '%')
       GROUP BY CASE WHEN COUNT_ON_TIME_ORDER_LINE = 1 THEN 'On time'
         WHEN COUNT_EARLY_ORDER_LINE = 1 THEN 'Early' ELSE 'Late' END`,
+  },
+  {
+    id: "procurement.pr-approval-status",
+    dashboard: "procurement",
+    title: "สถานะการจัดทำ PR",
+    description: "สถานะ Purchase Requisition จาก PR line ใน Oracle IFS",
+    sourceElementId: "1eb9f4e0-84ae-4dd5-abd6-97010b3dd267",
+    sourceDataSourceId: "99d00bed-2fa3-4008-9b32-0143b41d40f4",
+    allowedFilters: ["site", "buyer", "supplier"], kind: "bar", size: "lg",
+    sql: `SELECT OBJSTATE AS "label", COUNT(*) AS "value"
+      FROM PURCHASE_REQ_LINE_ALL_CFV
+      WHERE CONTRACT = :site AND OBJSTATE IN ('Planned','Released','Request Created','Partially Authorized','Authorized')
+        AND BUYER_CODE LIKE NVL(:buyer, '%') AND NVL(VENDOR_NO, '%') LIKE NVL(:supplier, '%')
+      GROUP BY OBJSTATE ORDER BY COUNT(*) DESC`,
   },
 ];
 
