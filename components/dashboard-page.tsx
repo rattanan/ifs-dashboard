@@ -366,10 +366,6 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
     setError(undefined);
     setFilters(dashboard === "summary" ? { site: "T10", projectId: "B6800" } : { site: "T10" });
   };
-  const kpis = makeKpis(data?.metrics ?? [], dashboard);
-  const cards = (data?.metrics ?? []).filter((metric) => !["kpi", "summary"].includes(metric.kind));
-  const ThemeIcon = themes[dashboard].Icon;
-
   if (dashboard === "summary") {
     return (
       <SummaryDashboard
@@ -398,6 +394,27 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
     );
   }
 
+  return <DepartmentDashboard dashboard={dashboard} data={data} filters={filters} loading={loading} error={error} onChange={change} onReset={reset} onRefresh={() => void load(true)} />;
+}
+
+type DepartmentSlug = Exclude<DashboardSlug, "summary" | "maintenance">;
+
+type DepartmentDashboardProps = {
+  dashboard: DepartmentSlug;
+  data?: DashboardResult;
+  filters: DashboardFilters;
+  loading: boolean;
+  error?: string;
+  onChange: (key: keyof DashboardFilters, value: string) => void;
+  onReset: () => void;
+  onRefresh: () => void;
+};
+
+export function DepartmentDashboard({ dashboard, data, filters, loading, error, onChange, onReset, onRefresh }: DepartmentDashboardProps) {
+  const kpis = makeKpis(data?.metrics ?? [], dashboard);
+  const cards = (data?.metrics ?? []).filter((metric) => !["kpi", "summary"].includes(metric.kind));
+  const ThemeIcon = themes[dashboard].Icon;
+
   return (
     <div className="min-h-screen bg-[#f7f9fc] px-3 py-3 sm:px-4 lg:px-5">
       <header className="relative mb-3 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-r from-[#eef4ff] via-white to-[#f8effb] p-4 shadow-sm sm:p-5">
@@ -406,13 +423,13 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
       </header>
 
       <section aria-label="ตัวกรอง Dashboard" className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-        <FilterSelect label="Site" value={filters.site} onChange={(value) => change("site", value)} options={["T10", "T101"]} />
-        {dashboard === "budget" && <FilterInput label="Project" value={filters.projectId} onChange={(value) => change("projectId", value)} placeholder="เช่น B6800" />}
-        {dashboard === "budget" && <FilterInput label="Fiscal Year" value={filters.fiscalYear} onChange={(value) => change("fiscalYear", value)} placeholder="เช่น 2569" />}
-        {dashboard === "inventory" && <><FilterSelect label="Location Group" value={filters.locationGroup ?? ""} onChange={(value) => change("locationGroup", value)} options={["", "DM-A", "DM-A1", "DM-L", "DM-P", "DM-UN", "TPAD", "TR-L", "TR-P"]} /><FilterInput label="Location" value={filters.locationSearch} onChange={(value) => change("locationSearch", value)} placeholder="ค้นหา Location" /></>}
-        {dashboard === "procurement" && <><FilterInput label="Buyer" value={filters.buyer} onChange={(value) => change("buyer", value)} placeholder="ทั้งหมด" /><FilterInput label="Supplier" value={filters.supplier} onChange={(value) => change("supplier", value)} placeholder="ทั้งหมด" /></>}
-        <FilterInput label="Period from" value={filters.from} onChange={(value) => change("from", value)} type="date" /><FilterInput label="Period to" value={filters.to} onChange={(value) => change("to", value)} type="date" />
-        <div className="flex items-end gap-2"><Button onClick={reset} disabled={loading} variant="secondary" className="min-h-11 flex-1 rounded-xl px-3 text-xs">รีเซ็ต</Button><Button onClick={() => void load(true)} disabled={loading} className="min-h-11 flex-1 rounded-xl px-3 text-xs text-white" style={{ backgroundColor: themes[dashboard].accent }}><RefreshCw className={loading ? "size-3.5 animate-spin" : "size-3.5"} /> รีเฟรช</Button></div>
+        <FilterSelect label="Site" value={filters.site} onChange={(value) => onChange("site", value)} options={["T10", "T101"]} />
+        {dashboard === "budget" && <FilterInput label="Project" value={filters.projectId} onChange={(value) => onChange("projectId", value)} placeholder="เช่น B6800" />}
+        {dashboard === "budget" && <FilterInput label="Fiscal Year" value={filters.fiscalYear} onChange={(value) => onChange("fiscalYear", value)} placeholder="เช่น 2569" />}
+        {dashboard === "inventory" && <><FilterSelect label="Location Group" value={filters.locationGroup ?? ""} onChange={(value) => onChange("locationGroup", value)} options={["", "DM-A", "DM-A1", "DM-L", "DM-P", "DM-UN", "TPAD", "TR-L", "TR-P"]} /><FilterInput label="Location" value={filters.locationSearch} onChange={(value) => onChange("locationSearch", value)} placeholder="ค้นหา Location" /></>}
+        {dashboard === "procurement" && <><FilterInput label="Buyer" value={filters.buyer} onChange={(value) => onChange("buyer", value)} placeholder="ทั้งหมด" /><FilterInput label="Supplier" value={filters.supplier} onChange={(value) => onChange("supplier", value)} placeholder="ทั้งหมด" /></>}
+        <FilterInput label="Period from" value={filters.from} onChange={(value) => onChange("from", value)} type="date" /><FilterInput label="Period to" value={filters.to} onChange={(value) => onChange("to", value)} type="date" />
+        <div className="flex items-end gap-2"><Button onClick={onReset} disabled={loading} variant="secondary" className="min-h-11 flex-1 rounded-xl px-3 text-xs">รีเซ็ต</Button><Button onClick={onRefresh} disabled={loading} className="min-h-11 flex-1 rounded-xl px-3 text-xs text-white" style={{ backgroundColor: themes[dashboard].accent }}><RefreshCw className={loading ? "size-3.5 animate-spin" : "size-3.5"} /> รีเฟรช</Button></div>
       </div></section>
 
       {error && <div className="mb-3 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{error}</span></div>}

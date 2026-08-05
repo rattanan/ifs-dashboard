@@ -175,13 +175,20 @@ const maintenance: MetricDefinition[] = [
     sourceElementId: "1ea50eb2-110a-477b-9d65-d5ec000c26fb",
     sourceDataSourceId: "02d8b1ef-72d9-498a-8a2e-e87314a5c9b3",
     allowedFilters: [], kind: "table", size: "wide",
-    sql: `SELECT PART_NO AS "Part No", UPPER(PART_CATALOG_API.Get_Description(PART_NO)) AS "Description",
-        SERIAL_NO AS "Serial No", STATE AS "Status", CF$_C_SERIAL_TSN AS "TSN",
-        CF$_C_SERIAL_TSO AS "TSO", DATE_CREATED AS "Date Created", DATE_CHANGED AS "Date Changed",
-        WARRANTY_EXPIRES AS "Warranty Expires"
-      FROM PART_SERIAL_CATALOG_CFV
-      WHERE CF$_C_SERIAL_TSN IS NULL AND CF$_C_SERIAL_TSO IS NULL
-      ORDER BY DATE_CREATED DESC`,
+    sql: `SELECT recent.PART_NO AS "Part No",
+        UPPER(PART_CATALOG_API.Get_Description(recent.PART_NO)) AS "Description",
+        recent.SERIAL_NO AS "Serial No", recent.STATE AS "Status",
+        recent.CF$_C_SERIAL_TSN AS "TSN", recent.CF$_C_SERIAL_TSO AS "TSO",
+        recent.DATE_CREATED AS "Date Created", recent.DATE_CHANGED AS "Date Changed",
+        recent.WARRANTY_EXPIRES AS "Warranty Expires"
+      FROM (
+        SELECT PART_NO, SERIAL_NO, STATE, CF$_C_SERIAL_TSN, CF$_C_SERIAL_TSO,
+            DATE_CREATED, DATE_CHANGED, WARRANTY_EXPIRES
+        FROM PART_SERIAL_CATALOG_CFV
+        WHERE CF$_C_SERIAL_TSN IS NULL AND CF$_C_SERIAL_TSO IS NULL
+          AND ROWNUM <= 30
+      ) recent
+      ORDER BY recent.DATE_CREATED DESC`,
   },
   {
     id: "maintenance.component-life",

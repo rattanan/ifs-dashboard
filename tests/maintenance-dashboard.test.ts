@@ -32,6 +32,7 @@ describe("maintenance dashboard", () => {
     expect(sql["maintenance.grounded-list"]).toContain("EQUIP_OBJECT_MEAS_GROUP_CFV");
     expect(sql["maintenance.mmr-planned"]).toContain("MAINT_MATERIAL_REQUISITION_UIV");
     expect(sql["maintenance.new-part-update"]).toContain("PART_SERIAL_CATALOG_CFV");
+    expect(sql["maintenance.new-part-update"]).toContain("ROWNUM <= 30");
     expect(sql["maintenance.component-life"]).toContain("EQUIPMENT_SERIAL_UIV_CFV");
   });
 });
