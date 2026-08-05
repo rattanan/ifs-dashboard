@@ -99,6 +99,25 @@ export const contents = mysqlTable(
   ],
 );
 
+export const contentReads = mysqlTable(
+  "content_reads",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    userId: varchar("user_id", { length: 36 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    contentId: varchar("content_id", { length: 36 })
+      .notNull()
+      .references(() => contents.id, { onDelete: "cascade" }),
+    readAt: timestamp("read_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("content_reads_user_content_uq").on(table.userId, table.contentId),
+    index("content_reads_user_idx").on(table.userId),
+    index("content_reads_content_idx").on(table.contentId),
+  ],
+);
+
 export const media = mysqlTable(
   "media",
   {
