@@ -123,7 +123,7 @@ function toneForMetric(metric: MetricResult, dashboard: DashboardSlug): Tone {
   return tones[key];
 }
 
-function MetricTable({ rows, caption, compact = false, tone }: { rows: Record<string, unknown>[]; caption: string; compact?: boolean; tone?: Tone }) {
+function MetricTable({ rows, caption, compact = false }: { rows: Record<string, unknown>[]; caption: string; compact?: boolean }) {
   const columns = rows.length ? Object.keys(rows[0]) : [];
   const visible = compact ? rows.slice(0, 6) : rows;
   const borderColor = "#e2e8f0";
@@ -399,33 +399,34 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f2f0f3] px-2 py-2 sm:px-3 lg:px-4">
-      <header className="mb-2 border-b-4 border-[#8d3b91] bg-white px-3 py-3 shadow-sm sm:px-4">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className={`grid size-11 place-items-center text-white ${themes[dashboard].icon}`}><ThemeIcon className="size-5" /></span><div><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#8d3b91]">TPAD IFSAPP Dashboard</p><h1 className="text-xl font-bold leading-tight text-[#102b5d] sm:text-2xl">{meta[dashboard].title}</h1><p className="text-[10px] text-slate-500">{meta[dashboard].subtitle}</p></div></div><div className="flex items-center gap-2 text-right"><div><p className="text-[10px] font-bold text-[#17346b]">Data Source: Oracle IFSAPP</p><p className="text-[9px] text-slate-400">{data ? `ล่าสุด ${formatDateTime(data.generatedAt)}` : "กำลังเชื่อมต่อ"}</p></div><span className={`size-2 rounded-full ${loading ? "animate-pulse bg-amber-400" : "bg-emerald-500"}`} /></div></div>
+    <div className="min-h-screen bg-[#f7f9fc] px-3 py-3 sm:px-4 lg:px-5">
+      <header className="relative mb-3 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-r from-[#eef4ff] via-white to-[#f8effb] p-4 shadow-sm sm:p-5">
+        <ThemeIcon className="pointer-events-none absolute -bottom-14 right-4 size-56 opacity-[.045]" style={{ color: themes[dashboard].accent }} />
+        <div className="relative flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-3"><span className="grid size-12 place-items-center rounded-2xl text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${themes[dashboard].accent}, #8d3b91)` }}><ThemeIcon className="size-6" /></span><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#8d3b91]">TPAD IFSAPP Dashboard</p><h1 className="text-xl font-bold leading-tight text-[#17346b] sm:text-3xl">{meta[dashboard].title}</h1><p className="mt-0.5 text-xs text-slate-500">{meta[dashboard].subtitle}</p></div></div><div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-right shadow-sm backdrop-blur"><p className="flex items-center justify-end gap-1.5 text-[10px] font-bold text-[#17346b]"><Database className="size-3.5" style={{ color: themes[dashboard].accent }} /> Oracle IFSAPP</p><p className="mt-0.5 text-[9px] text-slate-400">{data ? `ล่าสุด ${formatDateTime(data.generatedAt)}` : "กำลังเชื่อมต่อ"}</p></div></div>
       </header>
 
-      <section aria-label="ตัวกรอง Dashboard" className="mb-2 border border-[#6c2b74] bg-[#873c90] p-2 shadow-sm"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-        <FilterSelect label="Site" value={filters.site} onChange={(value) => change("site", value)} options={["T10", "T101"]} dark />
-        {dashboard === "budget" && <FilterInput label="Project" value={filters.projectId} onChange={(value) => change("projectId", value)} placeholder="เช่น B6800" dark />}
-        {dashboard === "budget" && <FilterInput label="Fiscal Year" value={filters.fiscalYear} onChange={(value) => change("fiscalYear", value)} placeholder="เช่น 2569" dark />}
-        {dashboard === "inventory" && <><FilterSelect label="Location Group" value={filters.locationGroup ?? ""} onChange={(value) => change("locationGroup", value)} options={["", "DM-A", "DM-A1", "DM-L", "DM-P", "DM-UN", "TPAD", "TR-L", "TR-P"]} dark /><FilterInput label="Location" value={filters.locationSearch} onChange={(value) => change("locationSearch", value)} placeholder="ค้นหา Location" dark /></>}
-        {dashboard === "procurement" && <><FilterInput label="Buyer" value={filters.buyer} onChange={(value) => change("buyer", value)} placeholder="ทั้งหมด" dark /><FilterInput label="Supplier" value={filters.supplier} onChange={(value) => change("supplier", value)} placeholder="ทั้งหมด" dark /></>}
-        <FilterInput label="Period from" value={filters.from} onChange={(value) => change("from", value)} type="date" dark /><FilterInput label="Period to" value={filters.to} onChange={(value) => change("to", value)} type="date" dark />
-        <div className="flex items-end gap-2"><Button onClick={reset} disabled={loading} variant="secondary" className="min-h-11 flex-1 rounded-none border-white/30 bg-white/10 px-3 text-xs text-white hover:bg-white/20">รีเซ็ต</Button><Button onClick={() => void load(true)} disabled={loading} variant="primary" className="min-h-11 flex-1 rounded-none bg-[#c6006f] px-3 text-xs hover:bg-[#a9005d]"><RefreshCw className={loading ? "size-3.5 animate-spin" : "size-3.5"} /> รีเฟรช</Button></div>
+      <section aria-label="ตัวกรอง Dashboard" className="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+        <FilterSelect label="Site" value={filters.site} onChange={(value) => change("site", value)} options={["T10", "T101"]} />
+        {dashboard === "budget" && <FilterInput label="Project" value={filters.projectId} onChange={(value) => change("projectId", value)} placeholder="เช่น B6800" />}
+        {dashboard === "budget" && <FilterInput label="Fiscal Year" value={filters.fiscalYear} onChange={(value) => change("fiscalYear", value)} placeholder="เช่น 2569" />}
+        {dashboard === "inventory" && <><FilterSelect label="Location Group" value={filters.locationGroup ?? ""} onChange={(value) => change("locationGroup", value)} options={["", "DM-A", "DM-A1", "DM-L", "DM-P", "DM-UN", "TPAD", "TR-L", "TR-P"]} /><FilterInput label="Location" value={filters.locationSearch} onChange={(value) => change("locationSearch", value)} placeholder="ค้นหา Location" /></>}
+        {dashboard === "procurement" && <><FilterInput label="Buyer" value={filters.buyer} onChange={(value) => change("buyer", value)} placeholder="ทั้งหมด" /><FilterInput label="Supplier" value={filters.supplier} onChange={(value) => change("supplier", value)} placeholder="ทั้งหมด" /></>}
+        <FilterInput label="Period from" value={filters.from} onChange={(value) => change("from", value)} type="date" /><FilterInput label="Period to" value={filters.to} onChange={(value) => change("to", value)} type="date" />
+        <div className="flex items-end gap-2"><Button onClick={reset} disabled={loading} variant="secondary" className="min-h-11 flex-1 rounded-xl px-3 text-xs">รีเซ็ต</Button><Button onClick={() => void load(true)} disabled={loading} className="min-h-11 flex-1 rounded-xl px-3 text-xs text-white" style={{ backgroundColor: themes[dashboard].accent }}><RefreshCw className={loading ? "size-3.5 animate-spin" : "size-3.5"} /> รีเฟรช</Button></div>
       </div></section>
 
-      {error && <div className="mb-2 flex items-start gap-2 border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{error}</span></div>}
-      {loading && !data ? <div className="grid gap-px border border-white bg-white sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-28 animate-pulse bg-slate-300" />)}</div> : <KpiStrip items={kpis} />}
-      <div className="mt-2 grid grid-cols-1 gap-px border border-white bg-white md:grid-cols-2 xl:grid-cols-12">{cards.map((metric) => <MetricCard key={metric.metricId} metric={metric} dashboard={dashboard} />)}</div>
-      <footer className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#8d3b91] pt-2 text-[10px] text-slate-500"><p className="flex items-center gap-1"><Clock3 className="size-3.5" /> Last updated: {data ? formatDateTime(data.generatedAt) : "—"}</p><p className="flex items-center gap-1"><Database className="size-3.5" /> Oracle IFSAPP · Read only · Cache 5 นาที</p></footer>
+      {error && <div className="mb-3 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{error}</span></div>}
+      {loading && !data ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-32 animate-pulse rounded-2xl bg-slate-200" />)}</div> : <KpiStrip items={kpis} />}
+      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">{cards.map((metric) => <MetricCard key={metric.metricId} metric={metric} dashboard={dashboard} />)}</div>
+      <footer className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3 text-[10px] text-slate-500"><p className="flex items-center gap-1"><Clock3 className="size-3.5" /> Last updated: {data ? formatDateTime(data.generatedAt) : "—"}</p><p className="flex items-center gap-1"><Database className="size-3.5" /> Oracle IFSAPP · Read only · Cache 5 นาที</p></footer>
     </div>
   );
 }
 
-function FilterInput({ label, value, onChange, placeholder, type = "text", dark = false }: { label: string; value?: string; onChange: (value: string) => void; placeholder?: string; type?: string; dark?: boolean }) {
-  return <label className={`text-[10px] font-semibold ${dark ? "text-white" : "text-slate-500"}`}><span className="mb-1 block">{label}</span><Input type={type} value={value ?? ""} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={`h-10 min-h-10 rounded-none px-2.5 text-xs ${dark ? "border-white/30 bg-white text-slate-900 placeholder:text-slate-400" : ""}`} /></label>;
+function FilterInput({ label, value, onChange, placeholder, type = "text" }: { label: string; value?: string; onChange: (value: string) => void; placeholder?: string; type?: string }) {
+  return <label className="text-[11px] font-semibold text-slate-600"><span className="mb-1 block">{label}</span><Input type={type} value={value ?? ""} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="h-11 min-h-11 rounded-xl border-slate-200 px-3 text-sm focus-visible:ring-sky-200" /></label>;
 }
 
-function FilterSelect({ label, value, onChange, options, dark = false }: { label: string; value: string; onChange: (value: string) => void; options: string[]; dark?: boolean }) {
-  return <label className={`text-[10px] font-semibold ${dark ? "text-white" : "text-slate-500"}`}><span className="mb-1 block">{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} className={`h-10 w-full rounded-none border px-2.5 text-xs outline-none focus:ring-2 focus:ring-sky-300 ${dark ? "border-white/30 bg-white text-slate-900" : "border-slate-200 bg-white text-slate-800"}`}>{options.map((option) => <option key={option} value={option}>{option || "ทั้งหมด"}</option>)}</select></label>;
+function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
+  return <label className="text-[11px] font-semibold text-slate-600"><span className="mb-1 block">{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100">{options.map((option) => <option key={option} value={option}>{option || "ทั้งหมด"}</option>)}</select></label>;
 }
