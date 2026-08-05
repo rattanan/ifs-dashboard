@@ -1,0 +1,561 @@
+import type { DashboardSlug, MetricDefinition } from "./types";
+
+const maintenance: MetricDefinition[] = [
+  {
+    id: "maintenance.aircraft-status",
+    dashboard: "maintenance",
+    title: "สถานะอากาศยาน",
+    description: "จำนวนอากาศยานแยกตามแบบและสถานะปัจจุบัน",
+    sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
+    sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
+    allowedFilters: ["site"],
+    kind: "donut",
+    size: "lg",
+    sql: `SELECT TYPE || ' · ' || CF$_C_CONDITION AS "label", COUNT(*) AS "value"
+      FROM EQUIPMENT_FUNCTIONAL_CFV
+      WHERE MCH_TYPE = 'AIRCRAFT' AND CF$_C_CONDITION <> 'อื่น ๆ' AND CONTRACT = :site
+      GROUP BY TYPE, CF$_C_CONDITION ORDER BY COUNT(*) DESC`,
+  },
+  {
+    id: "maintenance.wo-status",
+    dashboard: "maintenance",
+    title: "WO แยกตามสถานะ",
+    description: "งานซ่อมที่ยังเปิดอยู่ในแต่ละขั้นตอน",
+    sourceElementId: "7eb1ee6e-b249-4243-ae53-25d300f62a55",
+    sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
+    allowedFilters: ["site"],
+    kind: "bar",
+    size: "md",
+    sql: `SELECT STATE AS "label", COUNT(WO_NO) AS "value"
+      FROM ACTIVE_SEPARATE_OVERVIEW
+      WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
+      GROUP BY STATE ORDER BY COUNT(WO_NO) DESC`,
+  },
+  {
+    id: "maintenance.wo-work-type",
+    dashboard: "maintenance",
+    title: "งานคงค้างตามประเภทงาน",
+    description: "จำนวน WO ตาม Work Type เพื่อเห็นภาระงานหลัก",
+    sourceElementId: "6bbfc058-8de9-41a5-a93d-e65d437769b9",
+    sourceDataSourceId: "338d65ff-7cc7-4d6a-a8c3-6ce4973dc1a3",
+    allowedFilters: ["site"],
+    kind: "bar",
+    size: "md",
+    sql: `SELECT NVL(WORK_TYPE_ID, 'ไม่ระบุ') AS "label", COUNT(WO_NO) AS "value"
+      FROM ACTIVE_SEPARATE_OVERVIEW
+      WHERE GROUP_ID IS NOT NULL AND CONTRACT = :site
+      GROUP BY WORK_TYPE_ID ORDER BY COUNT(WO_NO) DESC FETCH FIRST 12 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.grounded-seven-days",
+    dashboard: "maintenance",
+    title: "หยุดบินเกิน 7 วัน",
+    description: "อากาศยานที่ไม่มีการบันทึกการบินเกินเกณฑ์",
+    sourceElementId: "6a2a808c-3c48-45cb-b5ff-9d379d5d8e5f",
+    sourceDataSourceId: "a51d1ed5-6da4-4339-809e-0dce92c71699",
+    allowedFilters: ["site"],
+    kind: "kpi",
+    size: "sm",
+    valueLabel: "ลำ",
+    sql: `SELECT COUNT(*) AS "value"
+      FROM EQUIP_OBJECT_MEAS_GROUP_CFV
+      WHERE SYSDATE - REG_DATE > 7 AND TEST_POINT_ID = 'TSN'
+        AND CF$_C_MCH_TYPE = 'AIRCRAFT' AND CONTRACT = :site
+        AND IFSAPP.EQUIPMENT_OBJECT_API.Get_OPERATIONAL_STATUS(CONTRACT, MCH_CODE) <> 'Scrapped'`,
+  },
+  {
+    id: "maintenance.mmr-status",
+    dashboard: "maintenance",
+    title: "สถานะ MMR",
+    description: "Material requisition ของงานซ่อมแยกตามสถานะ",
+    sourceElementId: "143f15e1-3254-485d-8b0b-42f2a5e7a886",
+    sourceDataSourceId: "a6a1a57c-9d91-4f88-ae2d-ce30a4851421",
+    allowedFilters: ["site"],
+    kind: "bar",
+    size: "md",
+    sql: `SELECT STATE AS "label", COUNT(*) AS "value"
+      FROM MAINT_MATERIAL_REQUISITION_CFV
+      WHERE IFSAPP.WORK_ORDER_API.Get_Contract(WO_NO) = :site
+      GROUP BY STATE ORDER BY COUNT(*) DESC`,
+  },
+  {
+    id: "maintenance.pm-six-months",
+    dashboard: "maintenance",
+    title: "PM ภายใน 6 เดือน",
+    description: "รายการบำรุงรักษาตามปฏิทินที่ใกล้ถึงกำหนด",
+    sourceElementId: "e06c15ad-3b40-49f7-9a59-dce8f952f033",
+    sourceDataSourceId: "1a10310c-bf94-400e-80c0-65ab768021c8",
+    allowedFilters: ["site"],
+    kind: "kpi",
+    size: "sm",
+    valueLabel: "รายการ",
+    sql: `SELECT COUNT(*) AS "value"
+      FROM PM_ACTION_CALENDAR_PLAN_CFV
+      WHERE PLANNED_DATE BETWEEN SYSDATE AND ADD_MONTHS(SYSDATE, 6)
+        AND (WORK_ORDER_API.Get_State(WO_NO) NOT IN ('Canceled','Finished') OR WO_NO IS NULL)
+        AND PM_ACTION_API.Get_State(PM_NO, PM_REVISION) <> 'Obsolete'`,
+  },
+  {
+    id: "maintenance.pm-500-hours",
+    dashboard: "maintenance",
+    title: "PM ภายใน 500 ชั่วโมง",
+    description: "งานบำรุงรักษาที่เหลือชั่วโมงบินต่ำกว่า 500 ชั่วโมง",
+    sourceElementId: "1ea50eb2-110a-477b-9d65-d5ec000c26fb",
+    sourceDataSourceId: "02d8b1ef-72d9-498a-8a2e-e87314a5c9b3",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT PM_NO AS "PM No", PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) AS "Site", PLANNED_VALUE AS "Planned",
+        LAST_MEASUREMENT AS "Last Value", CF$_C_REMAIN AS "Remain", WO_NO AS "WO No"
+      FROM PM_ACTION_CALENDAR_PLAN_CFV
+      WHERE CF$_C_REMAIN < 500
+        AND PM_ACTION_API.Get_Contract_Id(PM_NO, PM_REVISION) = :site
+        AND GENERATION_TYPE = 'Condition'
+      ORDER BY CF$_C_REMAIN FETCH FIRST 20 ROWS ONLY`,
+  },
+  {
+    id: "maintenance.component-life",
+    dashboard: "maintenance",
+    title: "Component ใกล้ครบอายุ",
+    description: "ชิ้นส่วนอากาศยานที่เหลืออายุใช้งานต่ำกว่า 100 ชั่วโมง",
+    sourceElementId: "fcacbaf4-45a0-49a3-b6e9-11fb11e1a668",
+    sourceDataSourceId: "7bfbf38a-7bcc-4826-85db-7ecdad28eed8",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT MCH_CODE AS "Component", SUP_MCH_CODE AS "Aircraft",
+        CF$_C_LIFELIMIT AS "Life Limit", CF$_C_TSO AS "TSO", CF$_C_REMAINHR AS "Remain Hr"
+      FROM EQUIPMENT_SERIAL_UIV_CFV
+      WHERE CF$_C_REMAINHR < 100 AND CF$_C_AVL = 'Yes'
+        AND OPERATIONAL_STATUS <> 'Scrapped' AND SUP_MCH_CODE NOT IN ('0000','XXXX')
+      ORDER BY CF$_C_REMAINHR FETCH FIRST 20 ROWS ONLY`,
+  },
+];
+
+const budget: MetricDefinition[] = [
+  {
+    id: "budget.summary",
+    dashboard: "budget",
+    title: "ภาพรวมงบประมาณ",
+    description: "งบตั้งต้น ใช้จริง ผูกพัน และคงเหลือของโครงการ",
+    sourceElementId: "41dd09bf-c14d-417a-891f-75fb50754ae2",
+    sourceDataSourceId: "8183cea7-3fbe-432d-9477-72daf540c389",
+    allowedFilters: ["projectId"],
+    kind: "summary",
+    size: "wide",
+    sql: `SELECT ROUND(SUM(ESTIMATED), 2) AS "budget", ROUND(SUM(ACTUAL), 2) AS "actual",
+        ROUND(SUM(COMMITTED), 2) AS "committed", ROUND(SUM(ESTIMATED - ACTUAL), 2) AS "balance"
+      FROM PROJ_CON_DET_SUM_COST_PROJECT
+      WHERE (:projectId IS NULL OR PROJECT_ID = UPPER(:projectId))`,
+  },
+  {
+    id: "budget.utilization",
+    dashboard: "budget",
+    title: "สัดส่วนการใช้จ่าย",
+    description: "เปอร์เซ็นต์งบที่ใช้จริงเทียบกับงบทั้งหมด",
+    sourceElementId: "612bacf3-ab66-455a-96de-49cd497a0168",
+    sourceDataSourceId: "8183cea7-3fbe-432d-9477-72daf540c389",
+    allowedFilters: ["projectId"],
+    kind: "gauge",
+    size: "md",
+    valueLabel: "%",
+    sql: `SELECT ROUND(CASE WHEN SUM(ESTIMATED) = 0 THEN 0 ELSE SUM(ACTUAL) / SUM(ESTIMATED) * 100 END, 2) AS "value"
+      FROM PROJ_CON_DET_SUM_COST_PROJECT
+      WHERE (:projectId IS NULL OR PROJECT_ID = UPPER(:projectId))`,
+  },
+  {
+    id: "budget.cost-elements",
+    dashboard: "budget",
+    title: "งบตามหมวดค่าใช้จ่าย",
+    description: "งบและการใช้จริงในแต่ละ Cost Element",
+    sourceElementId: "b1210fe9-7ec5-4d1b-a103-90c7d05958a8",
+    sourceDataSourceId: "8183cea7-3fbe-432d-9477-72daf540c389",
+    allowedFilters: ["projectId"],
+    kind: "bar",
+    size: "lg",
+    sql: `SELECT NVL(COST_ELEMENT_DESCRIPTION, 'ไม่ระบุ') AS "label", ROUND(SUM(ACTUAL), 2) AS "value"
+      FROM PROJ_CON_DET_SUM_COST_PROJECT
+      WHERE (:projectId IS NULL OR PROJECT_ID = UPPER(:projectId))
+      GROUP BY COST_ELEMENT_DESCRIPTION ORDER BY SUM(ACTUAL) DESC FETCH FIRST 10 ROWS ONLY`,
+  },
+  {
+    id: "budget.overdue-invoices",
+    dashboard: "budget",
+    title: "Invoice เกินกำหนด",
+    description: "จำนวนใบแจ้งหนี้ผู้ขายที่ยังไม่ชำระและเลยกำหนด",
+    sourceElementId: "318c059a-1ec4-423f-a1aa-54a06468348a",
+    sourceDataSourceId: "14869763-1479-4468-bd50-2e493567c80e",
+    allowedFilters: ["projectId"],
+    kind: "kpi",
+    size: "sm",
+    valueLabel: "ใบ",
+    sql: `SELECT COUNT(*) AS "value" FROM INVOICE
+      WHERE (:projectId IS NULL OR PROJECT_ID = UPPER(:projectId))
+        AND PARTY_TYPE = PARTY_TYPE_API.Decode('SUPPLIER')
+        AND OBJSTATE NOT IN ('Cancelled','PaidPosted') AND DUE_DATE < SYSDATE`,
+  },
+  {
+    id: "budget.po-closed",
+    dashboard: "budget",
+    title: "ยอดจ่ายรับพัสดุแล้ว",
+    description: "มูลค่า PO line ที่รับของหรือปิดรายการแล้ว",
+    sourceElementId: "f8fd7504-a684-480c-b5a4-3670d10c67be",
+    sourceDataSourceId: "57197ecb-57e0-433f-a5a1-425b49aab6a2",
+    allowedFilters: ["fiscalYear"],
+    kind: "kpi",
+    size: "sm",
+    valueLabel: "บาท",
+    sql: `SELECT ROUND(NVL(SUM(BUY_QTY_DUE * BUY_UNIT_PRICE), 0), 2) AS "value"
+      FROM PURCHASE_ORDER_LINE_ALL_CFV
+      WHERE (:fiscalYear IS NULL OR CF$_C_BUDGET_YEAR = UPPER(:fiscalYear))
+        AND STATE IN ('Closed','Received')`,
+  },
+  {
+    id: "budget.po-open",
+    dashboard: "budget",
+    title: "ยอดรอรับพัสดุ",
+    description: "มูลค่า PO line ที่ยังไม่ปิดหรือยกเลิก",
+    sourceElementId: "25c8cdf5-c244-4bc8-82f7-cfd6cc3f957d",
+    sourceDataSourceId: "36dea8dd-86ab-420a-bb5e-35c8ce257fdb",
+    allowedFilters: ["fiscalYear"],
+    kind: "kpi",
+    size: "sm",
+    valueLabel: "บาท",
+    sql: `SELECT ROUND(NVL(SUM(BUY_QTY_DUE * BUY_UNIT_PRICE), 0), 2) AS "value"
+      FROM PURCHASE_ORDER_LINE_ALL_CFV
+      WHERE (:fiscalYear IS NULL OR CF$_C_BUDGET_YEAR = UPPER(:fiscalYear))
+        AND STATE NOT IN ('Closed','Cancelled')`,
+  },
+  {
+    id: "budget.projects",
+    dashboard: "budget",
+    title: "สรุปโครงการงบประมาณ",
+    description: "ตารางเปรียบเทียบงบ ใช้จริง ผูกพัน และคงเหลือ",
+    sourceElementId: "bb75d829-0d53-482f-b59c-7ebaaddb349d",
+    sourceDataSourceId: "8183cea7-3fbe-432d-9477-72daf540c389",
+    allowedFilters: ["projectId"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT PROJECT_ID AS "Project", ROUND(SUM(ESTIMATED), 2) AS "Budget",
+        ROUND(SUM(ACTUAL), 2) AS "Actual", ROUND(SUM(COMMITTED), 2) AS "Committed",
+        ROUND(SUM(ESTIMATED - ACTUAL), 2) AS "Balance"
+      FROM PROJ_CON_DET_SUM_COST_PROJECT
+      WHERE (:projectId IS NULL OR PROJECT_ID = UPPER(:projectId))
+      GROUP BY PROJECT_ID ORDER BY PROJECT_ID FETCH FIRST 30 ROWS ONLY`,
+  },
+];
+
+const inventory: MetricDefinition[] = [
+  {
+    id: "inventory.mr-status",
+    dashboard: "inventory",
+    title: "MR line ตามสถานะ",
+    description: "รายการ Material Requisition ที่คลังต้องดำเนินการ",
+    sourceElementId: "bc6903d8-3220-4084-8303-cf12019b1ca4",
+    sourceDataSourceId: "fa1d6bc1-d977-480e-8925-112a883429b1",
+    allowedFilters: ["site"],
+    kind: "bar",
+    size: "lg",
+    sql: `SELECT STATUS_CODE AS "label", COUNT(*) AS "value"
+      FROM MATERIAL_REQUIS_LINE_CFV WHERE CONTRACT = :site
+        AND STATUS_CODE IN ('Released','Reserved','Partially Delivered')
+      GROUP BY STATUS_CODE ORDER BY COUNT(*) DESC`,
+  },
+  {
+    id: "inventory.mmr-warehouse",
+    dashboard: "inventory",
+    title: "MMR line ในคลัง",
+    description: "ขั้นตอน New, Preparing และ Waiting for Issue",
+    sourceElementId: "53f9bf72-7c31-4cd8-8e6f-123e6019113d",
+    sourceDataSourceId: "4bfa63b9-8656-4eda-9b06-45cefa474e6d",
+    allowedFilters: ["site"],
+    kind: "donut",
+    size: "md",
+    sql: `SELECT NVL(CF$_C_WH_STATUS, 'New') AS "label", COUNT(*) AS "value"
+      FROM MAINT_MATERIAL_REQ_LINE_CFV
+      WHERE WORK_ORDER_API.Get_Contract(WO_NO) = :site
+      GROUP BY CF$_C_WH_STATUS ORDER BY COUNT(*) DESC`,
+  },
+  {
+    id: "inventory.po-receipt",
+    dashboard: "inventory",
+    title: "PO รอตรวจและรับเข้าคลัง",
+    description: "สถานะการตรวจรับพัสดุจาก Purchase Order",
+    sourceElementId: "040966dc-5dab-4687-9051-6777c8fe239c",
+    sourceDataSourceId: "93f25d50-9730-4c58-a319-d29efe42c0ae",
+    allowedFilters: ["site"],
+    kind: "bar",
+    size: "md",
+    sql: `SELECT STATE AS "label", COUNT(*) AS "value"
+      FROM RECEIPT_INFO WHERE CONTRACT = :site
+        AND STATE IN ('To be Inspected','To be Received')
+      GROUP BY STATE ORDER BY COUNT(*) DESC`,
+  },
+  {
+    id: "inventory.returns",
+    dashboard: "inventory",
+    title: "Turn-in / Unserviceable",
+    description: "พัสดุจาก Work Order ที่รอส่งคืนหรือแยกเป็นของชำรุด",
+    sourceElementId: "f15ea9dc-a79e-4876-947e-0817cd5b8067",
+    sourceDataSourceId: "efa7afbf-240a-4d3d-9a0d-ef7fe7b0cda6",
+    allowedFilters: ["site"],
+    kind: "donut",
+    size: "md",
+    sql: `SELECT CF$_C_RETURN_TYPE AS "label", COUNT(*) AS "value"
+      FROM WORK_ORDER_RETURNS_UIV_CFV
+      WHERE CONTRACT = :site AND CF$_C_RETURN_TYPE IN ('Turn In','Unserviceable')
+        AND QTY_TO_RETURN - QTY_RETURNED <> 0 AND CF$_STATE_WT <> 'Cancelled'
+      GROUP BY CF$_C_RETURN_TYPE`,
+  },
+  {
+    id: "inventory.expiring",
+    dashboard: "inventory",
+    title: "ใกล้หมดอายุภายใน 2 เดือน",
+    description: "Lot/Serial ที่มีวันหมดอายุภายใน 60 วัน",
+    sourceElementId: "55642097-6f22-4722-a700-703b74b62ba7",
+    sourceDataSourceId: "d2b7c49c-dad9-430b-9048-029e5bf70dd3",
+    allowedFilters: ["site", "locationSearch"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT PART_NO AS "Part No", QTY_ONHAND AS "Qty", LOT_BATCH_NO AS "Lot",
+        SERIAL_NO AS "Serial", LOCATION_NO AS "Location", EXPIRATION_DATE AS "Expire Date"
+      FROM INVENTORY_PART_IN_STOCK_UIV
+      WHERE CONTRACT = :site AND EXPIRATION_DATE BETWEEN TRUNC(SYSDATE) AND TRUNC(SYSDATE) + 60
+        AND (:locationSearch IS NULL OR LOCATION_NO LIKE '%' || :locationSearch || '%')
+      ORDER BY EXPIRATION_DATE FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "inventory.low-stock",
+    dashboard: "inventory",
+    title: "ต่ำกว่าจุดสั่งซื้อ",
+    description: "พัสดุคงเหลือรวมต่ำกว่า Order Point ของแต่ละ Part",
+    sourceElementId: "10d7592b-6454-40a7-adc4-1744fa2dce48",
+    sourceDataSourceId: "11462411-0c36-4aa1-ab8b-65083ff4aa8d",
+    allowedFilters: ["site", "locationGroup"],
+    kind: "table",
+    size: "wide",
+    sql: `WITH STOCK AS (
+        SELECT S.CONTRACT, S.PART_NO, ROUND(SUM(S.QTY_ONHAND), 2) AS ON_HAND
+        FROM INVENTORY_PART_IN_STOCK_UIV S
+        JOIN INVENTORY_LOCATION L ON L.CONTRACT = S.CONTRACT AND L.LOCATION_NO = S.LOCATION_NO
+        WHERE S.CONTRACT = :site AND (:locationGroup IS NULL OR L.LOCATION_GROUP = :locationGroup)
+        GROUP BY S.CONTRACT, S.PART_NO
+      )
+      SELECT PART_NO AS "Part No", ON_HAND AS "On Hand",
+        INVENTORY_PART_PLANNING_API.Get_Order_Point_Qty(CONTRACT, PART_NO) AS "Order Point"
+      FROM STOCK
+      WHERE ON_HAND < INVENTORY_PART_PLANNING_API.Get_Order_Point_Qty(CONTRACT, PART_NO)
+      ORDER BY ON_HAND FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "inventory.incoming",
+    dashboard: "inventory",
+    title: "รายการรอเข้าคลัง",
+    description: "PO receipt ที่อยู่ระหว่างตรวจหรือรอรับเข้า",
+    sourceElementId: "6972498d-f745-470b-8ff2-718396e778e8",
+    sourceDataSourceId: "8f08c7da-1574-4cd0-a8a0-8e8459f31d87",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT SOURCE_REF1 AS "PO", SOURCE_REF2 AS "Line", INVENTORY_PART AS "Part No",
+        INV_QTY_ARRIVED AS "Qty", STATE AS "Status", RECEIPT_NO AS "Receipt"
+      FROM RECEIPT_INFO WHERE CONTRACT = :site
+        AND STATE IN ('To be Inspected','To be Received')
+      ORDER BY SOURCE_REF1 FETCH FIRST 30 ROWS ONLY`,
+  },
+];
+
+const procurement: MetricDefinition[] = [
+  {
+    id: "procurement.rfq-status",
+    dashboard: "procurement",
+    title: "Requests for Quotation",
+    description: "RFQ สำหรับจัดซื้อและจ้างซ่อมแยกตามสถานะ",
+    sourceElementId: "f6a8509f-fdf5-41f7-a2f8-4c49c6a470e7",
+    sourceDataSourceId: "ce5272af-7fec-4101-b51e-fd52e61515a6",
+    allowedFilters: ["site", "buyer"],
+    kind: "bar",
+    size: "lg",
+    sql: `SELECT STATE AS "label", COUNT(*) AS "value" FROM INQUIRY_ORDER_CFV
+      WHERE CONTRACT = :site AND STATE <> 'Cancelled'
+        AND BUYER_CODE LIKE NVL(:buyer, '%')
+      GROUP BY STATE ORDER BY COUNT(*) DESC`,
+  },
+  {
+    id: "procurement.pr-count",
+    dashboard: "procurement",
+    title: "PR รอดำเนินการ",
+    description: "Purchase Requisition line ที่ยังอยู่ในกระบวนการ",
+    sourceElementId: "1eb9f4e0-84ae-4dd5-abd6-97010b3dd267",
+    sourceDataSourceId: "99d00bed-2fa3-4008-9b32-0143b41d40f4",
+    allowedFilters: ["site", "buyer", "supplier"],
+    kind: "kpi",
+    size: "sm",
+    valueLabel: "รายการ",
+    sql: `SELECT COUNT(*) AS "value" FROM PURCHASE_REQ_LINE_ALL_CFV
+      WHERE CONTRACT = :site AND OBJSTATE IN ('Planned','Released','Request Created','Partially Authorized','Authorized')
+        AND BUYER_CODE LIKE NVL(:buyer, '%') AND NVL(VENDOR_NO, '%') LIKE NVL(:supplier, '%')`,
+  },
+  {
+    id: "procurement.po-status",
+    dashboard: "procurement",
+    title: "PO รอดำเนินการ",
+    description: "Purchase Order ที่ยังไม่ปิด แยกตามสถานะ",
+    sourceElementId: "3ce67969-99ee-4f30-a3d0-5c4de94c81f3",
+    sourceDataSourceId: "27005b1d-43ec-44fb-8e42-2bb6b1c8f145",
+    allowedFilters: ["site", "buyer", "supplier"],
+    kind: "donut",
+    size: "md",
+    sql: `SELECT OBJSTATE AS "label", COUNT(*) AS "value" FROM PURCHASE_ORDER
+      WHERE CONTRACT = :site AND OBJSTATE IN ('Stopped','Confirmed','Released','Planned')
+        AND BUYER_CODE LIKE NVL(:buyer, '%') AND VENDOR_NO LIKE NVL(:supplier, '%')
+      GROUP BY OBJSTATE ORDER BY COUNT(*) DESC`,
+  },
+  {
+    id: "procurement.overdue",
+    dashboard: "procurement",
+    title: "PO เกินกำหนด",
+    description: "Order line ที่เลย Planned Receipt Date",
+    sourceElementId: "37d8f99f-c130-462c-8d6b-a8502c0323cd",
+    sourceDataSourceId: "a9c929c9-a639-40de-8b6d-0388d308b2a7",
+    allowedFilters: ["buyer", "supplier"],
+    kind: "kpi",
+    size: "sm",
+    valueLabel: "รายการ",
+    sql: `SELECT COUNT(*) AS "value" FROM PURCHASE_ORDER_LINE_ALL
+      WHERE OBJSTATE IN ('Confirmed','Released','Planned') AND PLANNED_RECEIPT_DATE < SYSDATE + 1
+        AND BUYER_CODE LIKE NVL(:buyer, '%') AND VENDOR_NO LIKE NVL(:supplier, '%')`,
+  },
+  {
+    id: "procurement.delivery-rate",
+    dashboard: "procurement",
+    title: "Delivery ตรงเวลา",
+    description: "สัดส่วน Order line ที่ส่งมอบตรงเวลาภายใน 1 ปี",
+    sourceElementId: "edc5b3d3-e409-4a08-a85a-b75c7415e17d",
+    sourceDataSourceId: "88718f8d-9a10-4954-baa5-6fff81c0e353",
+    allowedFilters: ["buyer", "supplier"],
+    kind: "gauge",
+    size: "md",
+    valueLabel: "%",
+    sql: `SELECT ROUND(CASE WHEN SUM(COUNT_ORDER_LINE) = 0 THEN 0
+        ELSE SUM(COUNT_ON_TIME_ORDER_LINE) * 100 / SUM(COUNT_ORDER_LINE) END, 0) AS "value"
+      FROM PURCHASE_ORDER_LINE_DETAIL
+      WHERE STATE IN ('Arrived','Received','Closed') AND COUNT_ORDER_LINE > 0
+        AND PURCHASE_BUYER LIKE NVL(:buyer, '%') AND SUPPLIER LIKE NVL(:supplier, '%')`,
+  },
+  {
+    id: "procurement.quality",
+    dashboard: "procurement",
+    title: "Supplier Quality",
+    description: "สถานะคุณภาพจากรายการเสียหาย ไม่ครบ และปกติ",
+    sourceElementId: "8ad6e784-fac9-48b4-b669-66436aa95672",
+    sourceDataSourceId: "fce3d2a5-43af-4267-bb67-d8b6dedea3a7",
+    allowedFilters: ["buyer", "supplier"],
+    kind: "donut",
+    size: "md",
+    sql: `SELECT CASE WHEN COUNT_DAMAGE_ORDER_LINE = 1 THEN 'เสียหาย'
+        WHEN COUNT_INCOMPLETE_ORDER_LINE = 1 THEN 'ไม่ครบ' ELSE 'ปกติ' END AS "label",
+        COUNT(*) AS "value" FROM PURCHASE_ORDER_LINE_DETAIL
+      WHERE STATE IN ('Arrived','Received','Closed') AND PR_LATEST_ARRIVAL_DATE_ID > SYSDATE - 365
+        AND PURCHASE_BUYER LIKE NVL(:buyer, '%') AND SUPPLIER LIKE NVL(:supplier, '%')
+      GROUP BY CASE WHEN COUNT_DAMAGE_ORDER_LINE = 1 THEN 'เสียหาย'
+        WHEN COUNT_INCOMPLETE_ORDER_LINE = 1 THEN 'ไม่ครบ' ELSE 'ปกติ' END`,
+  },
+  {
+    id: "procurement.reliability",
+    dashboard: "procurement",
+    title: "Supplier Reliability",
+    description: "ความตรงต่อเวลาของผู้ขายในรอบ 1 ปี",
+    sourceElementId: "571fbb13-b293-4355-a393-a7de9bb601eb",
+    sourceDataSourceId: "51bcb1ac-a683-4b33-9d3d-189004c62f91",
+    allowedFilters: ["buyer", "supplier"],
+    kind: "donut",
+    size: "md",
+    sql: `SELECT CASE WHEN COUNT_ON_TIME_ORDER_LINE = 1 THEN 'ตรงเวลา'
+        WHEN COUNT_EARLY_ORDER_LINE = 1 THEN 'ก่อนกำหนด' ELSE 'ล่าช้า' END AS "label",
+        COUNT(*) AS "value" FROM PURCHASE_ORDER_LINE_DETAIL
+      WHERE STATE IN ('Arrived','Received','Closed')
+        AND NVL(PR_LATEST_ARRIVAL_DATE_ID, POL_PROMISED_DEL_DATE_ID) > SYSDATE - 365
+        AND PURCHASE_BUYER LIKE NVL(:buyer, '%') AND SUPPLIER LIKE NVL(:supplier, '%')
+      GROUP BY CASE WHEN COUNT_ON_TIME_ORDER_LINE = 1 THEN 'ตรงเวลา'
+        WHEN COUNT_EARLY_ORDER_LINE = 1 THEN 'ก่อนกำหนด' ELSE 'ล่าช้า' END`,
+  },
+  {
+    id: "procurement.arrivals",
+    dashboard: "procurement",
+    title: "แนวโน้มของเข้า",
+    description: "จำนวน PO ที่มีกำหนดรับ แยกตามสัปดาห์",
+    sourceElementId: "1bb26030-9f43-411f-a08b-9f8d89a96fb0",
+    sourceDataSourceId: "e2ac175b-f1a3-4726-9b32-434bdf288800",
+    allowedFilters: ["buyer", "supplier"],
+    kind: "line",
+    size: "lg",
+    sql: `SELECT TO_CHAR(PLANNED_RECEIPT_DATE, 'IYYY-IW') AS "label", COUNT(*) AS "value"
+      FROM PURCHASE_ORDER_LINE_ALL
+      WHERE OBJSTATE IN ('Confirmed','Released') AND PLANNED_RECEIPT_DATE < SYSDATE + 1
+        AND BUYER_CODE LIKE NVL(:buyer, '%') AND VENDOR_NO LIKE NVL(:supplier, '%')
+      GROUP BY TO_CHAR(PLANNED_RECEIPT_DATE, 'IYYY-IW')
+      ORDER BY TO_CHAR(PLANNED_RECEIPT_DATE, 'IYYY-IW') FETCH FIRST 12 ROWS ONLY`,
+  },
+  {
+    id: "procurement.mr-lines",
+    dashboard: "procurement",
+    title: "MR สำหรับจัดซื้อ/จ้างซ่อม",
+    description: "รายการ Material Requisition ที่ยังต้องดำเนินการ",
+    sourceElementId: "f6a8509f-fdf5-41f7-a2f8-4c49c6a470e7",
+    sourceDataSourceId: "fa1d6bc1-d977-480e-8925-112a883429b1",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT ORDER_NO AS "MR", LINE_NO AS "Line", PART_NO AS "Part No",
+        QTY_DUE AS "Qty", UNIT_MEAS AS "UoM", STATUS_CODE AS "Status", CF$_C_PRIORITY AS "Priority"
+      FROM MATERIAL_REQUIS_LINE_CFV WHERE CONTRACT = :site
+        AND STATUS_CODE IN ('Released','Reserved','Partially Delivered')
+      ORDER BY ORDER_NO, LINE_NO FETCH FIRST 30 ROWS ONLY`,
+  },
+];
+
+export const metricCatalog: MetricDefinition[] = [
+  ...maintenance,
+  ...budget,
+  ...inventory,
+  ...procurement,
+];
+
+export const dashboardSlugs: DashboardSlug[] = [
+  "maintenance",
+  "budget",
+  "inventory",
+  "procurement",
+];
+
+export const dashboardMeta: Record<DashboardSlug, { title: string; subtitle: string; accent: string }> = {
+  maintenance: {
+    title: "แผนกช่างและวางแผนการซ่อม",
+    subtitle: "ความพร้อมอากาศยาน งานซ่อม และแผนบำรุงรักษา",
+    accent: "cyan",
+  },
+  budget: {
+    title: "แผนกงบประมาณ",
+    subtitle: "ติดตามงบประมาณ การใช้จ่าย และภาระผูกพัน",
+    accent: "indigo",
+  },
+  inventory: {
+    title: "แผนกคลังพัสดุ",
+    subtitle: "สถานะพัสดุ การรับเข้า การเบิก และสินค้าคงคลัง",
+    accent: "emerald",
+  },
+  procurement: {
+    title: "แผนกจัดซื้อ จ้างซ่อม",
+    subtitle: "RFQ, PR, PO และประสิทธิภาพผู้ขาย",
+    accent: "amber",
+  },
+};
+
+export function getMetricsForDashboard(dashboard: DashboardSlug) {
+  return metricCatalog.filter((metric) => metric.dashboard === dashboard);
+}
+
+export function getMetric(metricId: string) {
+  return metricCatalog.find((metric) => metric.id === metricId);
+}
