@@ -6,29 +6,23 @@ describe("summary dashboard", () => {
     expect(dashboardSlugs).toContain("summary");
 
     const metrics = getMetricsForDashboard("summary");
-    expect(metrics).toHaveLength(8);
+    expect(metrics).toHaveLength(5);
     expect(metrics.map((metric) => metric.id)).toEqual([
       "summary.budget",
-      "summary.budget-by-project",
-      "summary.aircraft-status",
+      "summary.aircraft-readiness",
+      "summary.aircraft-condition",
       "summary.aircraft-list",
-      "summary.wo-by-aircraft",
-      "summary.wo-status",
-      "summary.wo-packages",
-      "summary.grounded-aircraft",
+      "summary.pr-status",
     ]);
 
+    expect(metrics.find((metric) => metric.id === "summary.budget")?.sql).toContain(
+      "PROJ_CON_DET_SUM_COST_PROJECT",
+    );
     expect(metrics.find((metric) => metric.id === "summary.aircraft-list")?.sql).toContain(
-      "EQUIPMENT_FUNCTIONAL_CFV",
+      "EQUIPMENT_FUNCTIONAL_UIV_CFV",
     );
-    expect(metrics.find((metric) => metric.id === "summary.wo-by-aircraft")?.sql).toContain(
-      "ACTIVE_SEPARATE_OVERVIEW",
-    );
-    expect(metrics.find((metric) => metric.id === "summary.wo-packages")?.sql).toContain(
-      "ACTIVE_SEPARATE_ELS_VIEW",
-    );
-    expect(metrics.find((metric) => metric.id === "summary.grounded-aircraft")?.sql).toContain(
-      "EQUIP_OBJECT_MEAS_GROUP_CFV",
+    expect(metrics.find((metric) => metric.id === "summary.pr-status")?.sql).toContain(
+      "C_APPROVAL_PUR",
     );
   });
 });

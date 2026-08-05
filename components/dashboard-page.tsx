@@ -20,6 +20,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { EChart } from "@/components/echart";
+import { SummaryDashboard } from "@/components/summary-dashboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -313,7 +314,9 @@ function MetricCard({ metric, dashboard }: { metric: MetricResult; dashboard: Da
 }
 
 export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
-  const [filters, setFilters] = useState<DashboardFilters>({ site: "T10" });
+  const [filters, setFilters] = useState<DashboardFilters>(
+    dashboard === "summary" ? { site: "T10", projectId: "B6800" } : { site: "T10" },
+  );
   const [data, setData] = useState<DashboardResult>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -357,11 +360,25 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
   const reset = () => {
     setLoading(true);
     setError(undefined);
-    setFilters({ site: "T10" });
+    setFilters(dashboard === "summary" ? { site: "T10", projectId: "B6800" } : { site: "T10" });
   };
   const kpis = makeKpis(data?.metrics ?? [], dashboard);
   const cards = (data?.metrics ?? []).filter((metric) => !["kpi", "summary"].includes(metric.kind));
   const ThemeIcon = themes[dashboard].Icon;
+
+  if (dashboard === "summary") {
+    return (
+      <SummaryDashboard
+        data={data}
+        filters={filters}
+        loading={loading}
+        error={error}
+        onChange={change}
+        onReset={reset}
+        onRefresh={() => void load(true)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f2f0f3] px-2 py-2 sm:px-3 lg:px-4">
@@ -371,7 +388,7 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
 
       <section aria-label="ตัวกรอง Dashboard" className="mb-2 border border-[#6c2b74] bg-[#873c90] p-2 shadow-sm"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
         <FilterSelect label="Site" value={filters.site} onChange={(value) => change("site", value)} options={["T10", "T101"]} dark />
-        {(dashboard === "budget" || dashboard === "summary") && <FilterInput label="Project" value={filters.projectId} onChange={(value) => change("projectId", value)} placeholder="เช่น B6800" dark />}
+        {dashboard === "budget" && <FilterInput label="Project" value={filters.projectId} onChange={(value) => change("projectId", value)} placeholder="เช่น B6800" dark />}
         {dashboard === "budget" && <FilterInput label="Fiscal Year" value={filters.fiscalYear} onChange={(value) => change("fiscalYear", value)} placeholder="เช่น 2569" dark />}
         {dashboard === "inventory" && <><FilterSelect label="Location Group" value={filters.locationGroup ?? ""} onChange={(value) => change("locationGroup", value)} options={["", "DM-A", "DM-A1", "DM-L", "DM-P", "DM-UN", "TPAD", "TR-L", "TR-P"]} dark /><FilterInput label="Location" value={filters.locationSearch} onChange={(value) => change("locationSearch", value)} placeholder="ค้นหา Location" dark /></>}
         {dashboard === "procurement" && <><FilterInput label="Buyer" value={filters.buyer} onChange={(value) => change("buyer", value)} placeholder="ทั้งหมด" dark /><FilterInput label="Supplier" value={filters.supplier} onChange={(value) => change("supplier", value)} placeholder="ทั้งหมด" dark /></>}
