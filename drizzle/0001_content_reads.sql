@@ -9,4 +9,3 @@ CREATE TABLE IF NOT EXISTS content_reads (
   CONSTRAINT content_reads_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT content_reads_content_fk FOREIGN KEY (content_id) REFERENCES contents(id) ON DELETE CASCADE
 );
---> statement-breakpoint

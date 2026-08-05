@@ -13,6 +13,7 @@ export type HomeDashboardHighlight = {
   dashboard: DashboardSlug;
   metrics: HomeHighlightMetric[];
   note?: HomeHighlightMetric;
+  insight: string;
   stale: boolean;
   hasError: boolean;
   generatedAt: string;
@@ -70,6 +71,45 @@ function latestDate(metrics: MetricResult[]) {
   }, new Date(0).toISOString());
 }
 
+function insightNumber(value: number | string | null | undefined, unit = "") {
+  if (value === null || value === undefined || value === "") return "ยังไม่มีข้อมูล";
+  const number = Number(value);
+  const formatted = Number.isFinite(number)
+    ? new Intl.NumberFormat("th-TH", { maximumFractionDigits: 2 }).format(number)
+    : String(value);
+  return `${formatted}${unit ? ` ${unit}` : ""}`;
+}
+
+function buildBusinessInsight(
+  dashboard: DashboardSlug,
+  highlights: HomeHighlightMetric[],
+  note: HomeHighlightMetric | undefined,
+  hasError: boolean,
+  stale: boolean,
+) {
+  if (hasError) return "ข้อมูลบาง metric ยังโหลดไม่ครบ ควรเปิด Dashboard เพื่อตรวจสอบก่อนใช้ประกอบการตัดสินใจ";
+  const prefix = stale ? "วิเคราะห์จากข้อมูลสำรองล่าสุด: " : "";
+  switch (dashboard) {
+    case "summary":
+      return `${prefix}งบประมาณปีนี้ ${insightNumber(highlights[0]?.value, highlights[0]?.unit)} และมีอากาศยานพร้อมใช้ ${insightNumber(highlights[1]?.value, highlights[1]?.unit)} ควรติดตามความพร้อมควบคู่กับอัตราเบิกจ่าย`;
+    case "maintenance": {
+      const grounded = numeric(highlights[1]?.value);
+      return grounded > 0
+        ? `${prefix}พบอากาศยานหยุดบินเกิน 7 วัน ${insightNumber(grounded, "ลำ")} ขณะมี WO เปิด ${insightNumber(highlights[0]?.value, "รายการ")} ควรเร่งจัดลำดับงานซ่อม`
+        : `${prefix}ไม่พบอากาศยานหยุดบินเกิน 7 วัน และมี WO เปิด ${insightNumber(highlights[0]?.value, "รายการ")}`;
+    }
+    case "budget": {
+      const utilization = numeric(note?.value);
+      const signal = utilization < 30 ? "อัตราเบิกจ่ายยังต่ำ ควรตรวจสอบแผนการใช้จ่าย" : utilization > 80 ? "อัตราใช้จ่ายอยู่ในระดับสูง ควรเฝ้าระวังงบคงเหลือ" : "อัตราใช้จ่ายอยู่ในช่วงติดตามตามแผน";
+      return `${prefix}ใช้จ่ายจริง ${insightNumber(highlights[1]?.value, "บาท")} จากงบรวม ${insightNumber(highlights[0]?.value, "บาท")} หรือ ${insightNumber(note?.value, "%")} — ${signal}`;
+    }
+    case "inventory":
+      return `${prefix}มี MR รอคลัง ${insightNumber(highlights[0]?.value, "รายการ")} และ PO รอตรวจรับ ${insightNumber(highlights[1]?.value, "รายการ")} ควรจัดลำดับรายการที่กระทบงานซ่อมก่อน`;
+    case "procurement":
+      return `${prefix}มี RFQ เปิดอยู่ ${insightNumber(highlights[0]?.value, "รายการ")} และ PO เปิดอยู่ ${insightNumber(highlights[1]?.value, "รายการ")} ควรติดตามรายการเกินกำหนดและความพร้อมของ Supplier`;
+  }
+}
+
 function buildHighlights(dashboard: DashboardSlug, metrics: MetricResult[]): HomeDashboardHighlight {
   const byId = new Map(metrics.map((metric) => [metric.metricId, metric]));
   const get = (id: string) => byId.get(id);
@@ -114,12 +154,15 @@ function buildHighlights(dashboard: DashboardSlug, metrics: MetricResult[]): Hom
       break;
   }
 
+  const hasError = metrics.some((metric) => Boolean(metric.error));
+  const stale = metrics.some((metric) => metric.stale);
   return {
     dashboard,
     metrics: highlights,
     note,
-    stale: metrics.some((metric) => metric.stale),
-    hasError: metrics.some((metric) => Boolean(metric.error)),
+    insight: buildBusinessInsight(dashboard, highlights, note, hasError, stale),
+    stale,
+    hasError,
     generatedAt: latestDate(metrics),
   };
 }
