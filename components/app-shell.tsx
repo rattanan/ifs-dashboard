@@ -117,7 +117,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-slate-50">
       <a href="#main-content" className="sr-only z-[100] rounded-lg bg-white px-4 py-2 focus:not-sr-only focus:fixed focus:left-4 focus:top-4">ข้ามไปยังเนื้อหา</a>
       <aside id="desktop-sidebar" aria-label="เมนูด้านซ้าย" className={cn("fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden bg-[#031d3b] p-3 transition-[width] duration-200 lg:flex", sidebarCollapsed ? "lg:w-[68px]" : "lg:w-[220px]")}>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-80 bg-[radial-gradient(circle_at_40%_90%,rgba(14,165,233,.22),transparent_55%)]" />
@@ -141,7 +141,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         <UserPanel user={user} collapsed={sidebarCollapsed} />
       </aside>
 
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2.5">
           <PlaneTakeoff className="size-5 text-sky-600" />
           <span className="font-bold text-slate-900">TPAD Executive</span>
@@ -160,11 +160,11 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         </Dialog.Root>
       </header>
 
-      <div className={cn("transition-[padding-left] duration-200", sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-[220px]")}>
-        <main id="main-content" className="min-h-screen pb-24 lg:pb-8">{children}</main>
+      <div className={cn("w-full min-w-0 transition-[padding-left] duration-200", sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-[220px]")}>
+        <main id="main-content" className="min-h-screen w-full min-w-0 pb-24 lg:pb-8">{children}</main>
       </div>
 
-      <nav aria-label="เมนูมือถือ" className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.16)] backdrop-blur lg:hidden">
+      <nav aria-label="เมนูมือถือ" className="fixed inset-x-3 bottom-3 z-40 grid min-w-0 grid-cols-6 rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.16)] backdrop-blur lg:hidden">
         {navigation.map((item) => {
           const Icon = item.icon;
           return <Link key={item.href} href={item.href} aria-label={item.label} className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[9px] font-medium text-slate-500 hover:bg-slate-100 hover:text-sky-700"><Icon className="size-[18px]" /><span className="max-w-full truncate">{item.label.split("และ")[0]}</span></Link>;
