@@ -4,7 +4,7 @@ const fleetReadiness: MetricDefinition[] = [
   {
     id: "fleet-readiness.aircraft-list",
     dashboard: "fleet-readiness",
-    title: "สถานะอากาศยานรายลำ (Top 10)",
+    title: "สถานะอากาศยานรายลำ",
     description: "ทะเบียนอากาศยาน ชั่วโมงบิน สถานะปัจจุบัน และภารกิจล่าสุด",
     sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
     sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
@@ -22,7 +22,7 @@ const fleetReadiness: MetricDefinition[] = [
         GROUP BY CONTRACT, MCH_CODE
       ) tsn ON tsn.CONTRACT = a.CONTRACT AND tsn.MCH_CODE = a.MCH_CODE
       WHERE a.MCH_TYPE = 'AIRCRAFT' AND a.SUP_MCH_CODE <> 'TXX' AND a.CONTRACT = :site
-      ORDER BY tsn.LAST_VALUE DESC NULLS LAST, a.MCH_CODE FETCH FIRST 10 ROWS ONLY`,
+      ORDER BY tsn.LAST_VALUE DESC NULLS LAST, a.MCH_CODE`,
   },
   {
     id: "fleet-readiness.status-summary",

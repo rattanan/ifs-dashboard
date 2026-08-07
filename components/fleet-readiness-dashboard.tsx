@@ -4,8 +4,11 @@ import type { EChartsOption } from "echarts";
 import {
   Activity,
   AlertTriangle,
+  ArrowDown,
   ArrowDownRight,
+  ArrowUp,
   ArrowUpRight,
+  ArrowUpDown,
   BarChart3,
   CalendarDays,
   CheckCircle2,
@@ -17,13 +20,15 @@ import {
   Plane,
   PlaneTakeoff,
   CircleHelp,
+  ChevronLeft,
+  ChevronRight,
   RefreshCw,
   RotateCcw,
   ShieldAlert,
   TrendingUp,
   Wrench,
 } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { EChart } from "@/components/echart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,21 +95,10 @@ function countsFromAircraft(rows: FleetReadinessSnapshot["aircraft"]): FleetStat
   return counts;
 }
 
-function sortAircraftRows(rows: FleetReadinessSnapshot["aircraft"]) {
-  return [...rows]
-    .sort((left, right) => {
-      const hoursDifference = (right.flightHours ?? Number.NEGATIVE_INFINITY)
-        - (left.flightHours ?? Number.NEGATIVE_INFINITY);
-      return hoursDifference || left.aircraft.localeCompare(right.aircraft);
-    })
-    .slice(0, 10)
-    .map((row, index) => ({ ...row, rank: index + 1 }));
-}
-
 function aircraftRows(source: MetricResult | undefined) {
   const rows = source?.rows ?? [];
-  if (!rows.length) return sortAircraftRows(fleetReadinessSeed.aircraft);
-  return sortAircraftRows(rows.map((row, index) => ({
+  if (!rows.length) return fleetReadinessSeed.aircraft;
+  return rows.map((row, index) => ({
     rank: numeric(field(row, "rank"), index + 1),
     aircraft: String(field(row, "aircraft", "aircraft id", "mch code") ?? `AIR-${index + 1}`),
     groupId: String(field(row, "group id", "groupId") ?? "—"),
@@ -112,7 +106,7 @@ function aircraftRows(source: MetricResult | undefined) {
     flightHours: normalizeFlightHours(field(row, "flight hours", "flightHours", "hours")),
     status: normalizeFleetStatus(field(row, "status", "condition")),
     event: String(field(row, "event", "response", "last activity") ?? "—"),
-  })));
+  }));
 }
 
 function statusCountsFromMetric(source: MetricResult | undefined, fallback: FleetStatusCounts) {
@@ -284,12 +278,83 @@ function SecondaryKpiCard({ item }: { item: SecondaryKpi }) {
   return <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4"><div className="flex items-start justify-between gap-2"><div className="flex min-w-0 items-center gap-2"><span className="grid size-8 shrink-0 place-items-center rounded-lg" style={{ backgroundColor: `${item.color}12`, color: item.color }}>{item.icon}</span><p className="truncate text-[10px] font-semibold text-slate-600" title={item.label}>{item.label}</p></div><span className={`flex shrink-0 items-center text-[10px] font-bold ${favorable ? "text-emerald-600" : "text-rose-600"}`}><TrendIcon className="size-3.5" /> {Math.abs(item.delta).toFixed(1)}%</span></div><p className="mt-4 text-2xl font-bold tabular-nums" style={{ color: item.color }}>{formatNumber(item.value)} <span className="text-[10px] font-medium text-slate-400">{item.unit}</span></p><p className="mt-1 text-[9px] text-slate-400">เทียบกับช่วงก่อนหน้า</p></div>;
 }
 
+type AircraftRow = FleetReadinessSnapshot["aircraft"][number];
+type AircraftSortKey = "aircraft" | "groupId" | "type" | "flightHours" | "status" | "event";
+type SortDirection = "asc" | "desc";
+
+function aircraftSortValue(row: AircraftRow, key: AircraftSortKey) {
+  if (key === "status") return fleetStatusLabels[row.status];
+  return row[key];
+}
+
+function SortableHeader({
+  column,
+  label,
+  sortKey,
+  sortDirection,
+  onSort,
+  align = "left",
+}: {
+  column: AircraftSortKey;
+  label: string;
+  sortKey: AircraftSortKey;
+  sortDirection: SortDirection;
+  onSort: (key: AircraftSortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = sortKey === column;
+  const SortIcon = !active ? ArrowUpDown : sortDirection === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th scope="col" aria-sort={active ? sortDirection === "asc" ? "ascending" : "descending" : undefined} className="px-1 py-1">
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={`flex min-h-10 w-full items-center gap-1.5 rounded-lg px-2 text-left transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${align === "right" ? "justify-end" : "justify-start"}`}
+      >
+        <span>{label}</span>
+        <SortIcon className={`size-3.5 shrink-0 ${active ? "text-sky-200" : "text-white/50"}`} aria-hidden="true" />
+      </button>
+    </th>
+  );
+}
+
 function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
+  const [sortKey, setSortKey] = useState<AircraftSortKey>("flightHours");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const sortedRows = useMemo(() => [...rows].sort((left, right) => {
+    const leftValue = aircraftSortValue(left, sortKey);
+    const rightValue = aircraftSortValue(right, sortKey);
+    if (leftValue === null && rightValue === null) return left.aircraft.localeCompare(right.aircraft);
+    if (leftValue === null) return 1;
+    if (rightValue === null) return -1;
+    const comparison = typeof leftValue === "number" && typeof rightValue === "number"
+      ? leftValue - rightValue
+      : String(leftValue).localeCompare(String(rightValue), "th", { numeric: true, sensitivity: "base" });
+    return sortDirection === "asc" ? comparison : -comparison;
+  }), [rows, sortDirection, sortKey]);
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const startIndex = (currentPage - 1) * pageSize;
+  const pageRows = sortedRows.slice(startIndex, startIndex + pageSize);
+  const endIndex = Math.min(startIndex + pageSize, sortedRows.length);
+
+  function toggleSort(key: AircraftSortKey) {
+    if (sortKey === key) {
+      setSortDirection((current) => current === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDirection(key === "flightHours" ? "desc" : "asc");
+    }
+    setPage(1);
+  }
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[920px] table-fixed text-left text-xs text-slate-700">
-          <caption className="sr-only">สถานะอากาศยานรายลำ Top 10 พร้อม Group ID</caption>
+          <caption className="sr-only">สถานะอากาศยานรายลำ พร้อมการเรียงข้อมูลและแบ่งหน้า</caption>
           <colgroup>
             <col className="w-12" />
             <col className="w-28" />
@@ -302,18 +367,18 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
           <thead className="bg-[#17346b] text-[10px] font-semibold uppercase tracking-wide text-white">
             <tr>
               <th scope="col" className="px-3 py-3 text-center">#</th>
-              <th scope="col" className="px-3 py-3">Aircraft ID</th>
-              <th scope="col" className="px-3 py-3">Group ID</th>
-              <th scope="col" className="px-3 py-3">ประเภท</th>
-              <th scope="col" className="px-3 py-3 text-right">ชั่วโมงบินสะสม</th>
-              <th scope="col" className="px-3 py-3">สถานะปัจจุบัน</th>
-              <th scope="col" className="px-3 py-3">ภารกิจล่าสุด / กำหนดการ</th>
+              <SortableHeader column="aircraft" label="Aircraft ID" sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
+              <SortableHeader column="groupId" label="Group ID" sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
+              <SortableHeader column="type" label="ประเภท" sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
+              <SortableHeader column="flightHours" label="ชั่วโมงบินสะสม" sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} align="right" />
+              <SortableHeader column="status" label="สถานะปัจจุบัน" sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
+              <SortableHeader column="event" label="ภารกิจล่าสุด / กำหนดการ" sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {pageRows.map((row, index) => (
               <tr key={row.aircraft} className="border-t border-slate-100 even:bg-slate-50/70 hover:bg-blue-50/70">
-                <td className="px-3 py-3 text-center text-slate-400">{row.rank}</td>
+                <td className="px-3 py-3 text-center text-slate-400">{startIndex + index + 1}</td>
                 <th scope="row" className="whitespace-nowrap px-3 py-3 font-bold text-[#17346b]">{row.aircraft}</th>
                 <td className="px-3 py-3">
                   <span className="inline-flex max-w-full rounded-md bg-indigo-50 px-2 py-1 font-semibold text-indigo-700" title={row.groupId}>{row.groupId}</span>
@@ -326,6 +391,28 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50/80 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
+          <span aria-live="polite">แสดง {sortedRows.length ? startIndex + 1 : 0}–{endIndex} จาก {sortedRows.length} รายการ</span>
+          <label className="flex items-center gap-2 font-medium">
+            รายการต่อหน้า
+            <select
+              value={pageSize}
+              onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
+              className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+            >
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </label>
+        </div>
+        <nav aria-label="แบ่งหน้ารายการอากาศยาน" className="flex items-center justify-between gap-2 sm:justify-end">
+          <Button variant="secondary" size="sm" onClick={() => setPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} aria-label="หน้าก่อนหน้า"><ChevronLeft className="size-4" /> ก่อนหน้า</Button>
+          <span className="min-w-20 text-center text-[11px] font-semibold text-slate-600">หน้า {currentPage} / {pageCount}</span>
+          <Button variant="secondary" size="sm" onClick={() => setPage(Math.min(pageCount, currentPage + 1))} disabled={currentPage === pageCount} aria-label="หน้าถัดไป">ถัดไป <ChevronRight className="size-4" /></Button>
+        </nav>
       </div>
     </div>
   );
@@ -371,11 +458,11 @@ export function FleetReadinessDashboard({ data, filters, loading, error, onChang
 
     <section aria-label="Fleet readiness charts" className="mt-3 grid gap-3 xl:grid-cols-12"><Panel title="สถานะความพร้อมใช้งาน" subtitle="สัดส่วนอากาศยานทั้งหมดแยกตามสถานะ" icon={<CircleGauge className="size-4" />} className="xl:col-span-4"><div className="relative"><EChart option={donut} label="Donut chart สถานะความพร้อมใช้งาน" className="h-64" /><div className="pointer-events-none absolute left-[31%] top-1/2 -translate-x-1/2 -translate-y-1/2 text-center"><p className="text-3xl font-bold leading-none text-[#17346b]">{view.totalAircraft}</p><p className="mt-1 text-[10px] text-slate-500">ลำ<br />Total</p></div></div></Panel><Panel title="แนวโน้ม Availability Rate" subtitle="ย้อนหลัง 6 เดือน" icon={<TrendingUp className="size-4" />} className="xl:col-span-4"><EChart option={trend} label="Line chart แนวโน้ม Availability Rate" className="h-64" /></Panel><Panel title="อากาศยานตามสถานะ (แยกประเภท)" subtitle="เปรียบเทียบ Helicopter และ Fixed Wing" icon={<BarChart3 className="size-4" />} className="xl:col-span-4"><EChart option={byType} label="Stacked bar chart อากาศยานตามสถานะและประเภท" className="h-64" /></Panel></section>
 
-    <section aria-label="Fleet reliability details" className="mt-3 grid gap-3">
-      <Panel title="ตัวชี้วัดสำคัญ" subtitle="Reliability, flight activity และการใช้ประโยชน์ฝูงบิน" icon={<Gauge className="size-4" />}>
-        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 xl:grid-cols-6">{secondaryKpis.map((item) => <SecondaryKpiCard key={item.label} item={item} />)}</div>
+    <section aria-label="Fleet reliability details" className="mt-3 grid items-start gap-3 xl:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)]">
+      <Panel title="ตัวชี้วัดสำคัญ" subtitle="Reliability และ flight activity" icon={<Gauge className="size-4" />} className="xl:h-full">
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-1">{secondaryKpis.map((item) => <SecondaryKpiCard key={item.label} item={item} />)}</div>
       </Panel>
-      <Panel title="สถานะอากาศยานรายลำ (Top 10)" subtitle="เรียงตามชั่วโมงบินสะสมจากมากไปน้อย" icon={<Plane className="size-4" />}>
+      <Panel title="สถานะอากาศยานรายลำ" subtitle="กดหัวตารางเพื่อเรียงข้อมูล และเลือกจำนวนรายการต่อหน้าได้" icon={<Plane className="size-4" />} className="min-w-0 xl:h-full">
         <AircraftTable rows={view.aircraft} />
       </Panel>
     </section>

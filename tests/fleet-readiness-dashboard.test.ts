@@ -49,13 +49,13 @@ describe("fleet readiness dashboard", () => {
     }
   });
 
-  it("includes Group ID without MCH Name in the Top 10 aircraft query", () => {
+  it("loads all aircraft for the sortable paginated table", () => {
     const sql = getMetricsForDashboard("fleet-readiness")
       .find((metric) => metric.id === "fleet-readiness.aircraft-list")?.sql;
 
     expect(sql).toContain('a.GROUP_ID AS "groupId"');
     expect(sql).not.toContain("a.MCH_NAME");
     expect(sql).toContain("ORDER BY tsn.LAST_VALUE DESC NULLS LAST, a.MCH_CODE");
-    expect(sql).toContain("FETCH FIRST 10 ROWS ONLY");
+    expect(sql).not.toContain("FETCH FIRST");
   });
 });
