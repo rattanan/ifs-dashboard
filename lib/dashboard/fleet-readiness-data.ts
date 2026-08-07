@@ -1,4 +1,4 @@
-export type FleetStatusKey = "ready" | "maintenance" | "parts" | "grounded";
+export type FleetStatusKey = "ready" | "maintenance" | "parts" | "grounded" | "unknown";
 
 export type FleetStatusCounts = Record<FleetStatusKey, number>;
 
@@ -15,6 +15,7 @@ export type FleetReadinessSnapshot = {
     maintenance: number;
     parts: number;
     grounded: number;
+    unknown: number;
   }>;
   kpis: {
     mtbf: number;
@@ -35,7 +36,7 @@ export type FleetReadinessSnapshot = {
     aircraft: string;
     model: string;
     type: "Helicopter" | "Fixed Wing";
-    flightHours: number;
+    flightHours: number | null;
     status: FleetStatusKey;
     event: string;
   }>;
@@ -52,7 +53,37 @@ export const fleetStatusLabels: Record<FleetStatusKey, string> = {
   maintenance: "อยู่ระหว่างซ่อมบำรุง",
   parts: "รออะไหล่",
   grounded: "หยุดใช้งาน (Grounded)",
+  unknown: "ไม่ระบุสถานะ",
 };
+
+export function normalizeFleetStatus(value: unknown): FleetStatusKey {
+  const status = String(value ?? "").trim().toLowerCase();
+  if (!status) return "unknown";
+  if (
+    status.includes("ground") ||
+    status.includes("หยุด") ||
+    status.includes("unavailable") ||
+    status.includes("ใช้งานไม่ได้") ||
+    status.includes("ใช้ราชการไม่ได้")
+  ) return "grounded";
+  if (status.includes("part") || status.includes("อะไหล่") || status.includes("waiting")) return "parts";
+  if (status.includes("maint") || status.includes("ซ่อม") || status.includes("repair")) return "maintenance";
+  if (
+    status.includes("mission ready") ||
+    status === "ready" ||
+    status === "available" ||
+    status.includes("ใช้งานได้") ||
+    status.includes("พร้อม")
+  ) return "ready";
+  return "unknown";
+}
+
+export function normalizeFlightHours(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" && !value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 export const fleetReadinessSeed: FleetReadinessSnapshot = {
   site: "T10",
@@ -63,6 +94,7 @@ export const fleetReadinessSeed: FleetReadinessSnapshot = {
     maintenance: 7,
     parts: 2,
     grounded: 2,
+    unknown: 0,
   },
   availabilityTrend: [
     { label: "Dec", value: 58.1 },
@@ -73,8 +105,8 @@ export const fleetReadinessSeed: FleetReadinessSnapshot = {
     { label: "May", value: 64.5 },
   ],
   byType: [
-    { type: "Helicopter", total: 24, ready: 15, maintenance: 5, parts: 2, grounded: 2 },
-    { type: "Fixed Wing", total: 7, ready: 5, maintenance: 2, parts: 0, grounded: 0 },
+    { type: "Helicopter", total: 24, ready: 15, maintenance: 5, parts: 2, grounded: 2, unknown: 0 },
+    { type: "Fixed Wing", total: 7, ready: 5, maintenance: 2, parts: 0, grounded: 0, unknown: 0 },
   ],
   kpis: {
     mtbf: 320.5,

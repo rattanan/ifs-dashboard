@@ -16,6 +16,7 @@ import {
   PackageSearch,
   Plane,
   PlaneTakeoff,
+  CircleHelp,
   RefreshCw,
   RotateCcw,
   ShieldAlert,
@@ -31,6 +32,8 @@ import type { DashboardFilters, DashboardResult, MetricResult } from "@/lib/dash
 import {
   fleetReadinessSeed,
   fleetStatusLabels,
+  normalizeFlightHours,
+  normalizeFleetStatus,
   type FleetReadinessSnapshot,
   type FleetStatusCounts,
   type FleetStatusKey,
@@ -47,18 +50,20 @@ type Props = {
   onRefresh: () => void;
 };
 
-const statusOrder: FleetStatusKey[] = ["ready", "maintenance", "parts", "grounded"];
+const statusOrder: FleetStatusKey[] = ["ready", "maintenance", "parts", "grounded", "unknown"];
 const statusColors: Record<FleetStatusKey, string> = {
   ready: "#279532",
   maintenance: "#f0b429",
   parts: "#ed6b28",
   grounded: "#d94b65",
+  unknown: "#64748b",
 };
 const statusSoftColors: Record<FleetStatusKey, string> = {
   ready: "#ecf8ee",
   maintenance: "#fff8df",
   parts: "#fff0e7",
   grounded: "#fdecef",
+  unknown: "#f1f5f9",
 };
 
 function metric(data: DashboardResult | undefined, id: string) {
@@ -79,16 +84,8 @@ function percent(value: number) {
   return `${value.toFixed(1)}%`;
 }
 
-function normalizeStatus(value: unknown): FleetStatusKey {
-  const status = String(value ?? "").trim().toLowerCase();
-  if (status.includes("ground") || status.includes("หยุด") || status.includes("unavailable")) return "grounded";
-  if (status.includes("part") || status.includes("อะไหล่") || status.includes("waiting")) return "parts";
-  if (status.includes("maint") || status.includes("ซ่อม") || status.includes("repair")) return "maintenance";
-  return "ready";
-}
-
 function countsFromAircraft(rows: FleetReadinessSnapshot["aircraft"]): FleetStatusCounts {
-  const counts: FleetStatusCounts = { ready: 0, maintenance: 0, parts: 0, grounded: 0 };
+  const counts: FleetStatusCounts = { ready: 0, maintenance: 0, parts: 0, grounded: 0, unknown: 0 };
   for (const row of rows) counts[row.status] += 1;
   return counts;
 }
@@ -101,16 +98,16 @@ function aircraftRows(source: MetricResult | undefined) {
     aircraft: String(field(row, "aircraft", "aircraft id", "mch code") ?? `AIR-${index + 1}`),
     model: String(field(row, "model", "description", "type") ?? "—"),
     type: String(field(row, "type", "machine type") ?? "Helicopter") as "Helicopter" | "Fixed Wing",
-    flightHours: numeric(field(row, "flight hours", "flightHours", "hours")),
-    status: normalizeStatus(field(row, "status", "condition")),
+    flightHours: normalizeFlightHours(field(row, "flight hours", "flightHours", "hours")),
+    status: normalizeFleetStatus(field(row, "status", "condition")),
     event: String(field(row, "event", "response", "last activity") ?? "—"),
   }));
 }
 
 function statusCountsFromMetric(source: MetricResult | undefined, fallback: FleetStatusCounts) {
   const rows = source?.rows ?? [];
-  const counts: FleetStatusCounts = { ready: 0, maintenance: 0, parts: 0, grounded: 0 };
-  for (const row of rows) counts[normalizeStatus(field(row, "status", "condition"))] += numeric(field(row, "value", "count"));
+  const counts: FleetStatusCounts = { ready: 0, maintenance: 0, parts: 0, grounded: 0, unknown: 0 };
+  for (const row of rows) counts[normalizeFleetStatus(field(row, "status", "condition"))] += numeric(field(row, "value", "count"));
   const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
   return total > 0 ? counts : fallback;
 }
@@ -120,8 +117,8 @@ function byTypeFromMetric(source: MetricResult | undefined, fallback: FleetReadi
   const grouped = new Map<string, FleetReadinessSnapshot["byType"][number]>();
   for (const row of rows) {
     const type = String(field(row, "type", "unit") ?? "Helicopter");
-    const current = grouped.get(type) ?? { type: type as "Helicopter" | "Fixed Wing", total: 0, ready: 0, maintenance: 0, parts: 0, grounded: 0 };
-    const status = normalizeStatus(field(row, "status", "condition"));
+    const current = grouped.get(type) ?? { type: type as "Helicopter" | "Fixed Wing", total: 0, ready: 0, maintenance: 0, parts: 0, grounded: 0, unknown: 0 };
+    const status = normalizeFleetStatus(field(row, "status", "condition"));
     const value = numeric(field(row, "value", "count"));
     current[status] += value;
     current.total += value;
@@ -169,7 +166,7 @@ function viewModel(data: DashboardResult | undefined) {
     totalAircraft: actualTotal || readKpi("aircraftTotal", fleetReadinessSeed.totalAircraft),
     statusCounts,
     byType: byTypeFromMetric(status, fleetReadinessSeed.byType),
-    availabilityTrend: trendRows.length > 1 ? trendRows : fleetReadinessSeed.availabilityTrend,
+    availabilityTrend: trendRows.length ? trendRows : fleetReadinessSeed.availabilityTrend,
     kpis: {
       mtbf: readKpi("mtbf", fleetReadinessSeed.kpis.mtbf),
       mtbfDelta: readKpi("mtbfDelta", fleetReadinessSeed.kpis.mtbfDelta),
@@ -277,7 +274,7 @@ function SecondaryKpiCard({ item }: { item: SecondaryKpi }) {
 }
 
 function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
-  return <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full min-w-[700px] text-left text-xs text-slate-700"><caption className="sr-only">สถานะอากาศยานรายลำ Top 10</caption><thead className="bg-[#17346b] text-[10px] font-semibold text-white"><tr><th scope="col" className="px-3 py-2.5 text-center">#</th><th scope="col" className="px-3 py-2.5">Aircraft ID</th><th scope="col" className="px-3 py-2.5">ประเภท</th><th scope="col" className="px-3 py-2.5 text-right">ชั่วโมงบินสะสม</th><th scope="col" className="px-3 py-2.5">สถานะปัจจุบัน</th><th scope="col" className="px-3 py-2.5">ภารกิจล่าสุด / กำหนดการ</th></tr></thead><tbody>{rows.map((row) => <tr key={row.aircraft} className="border-t border-slate-100 even:bg-slate-50/70 hover:bg-blue-50/70"><td className="px-3 py-2.5 text-center text-slate-400">{row.rank}</td><th scope="row" className="whitespace-nowrap px-3 py-2.5 font-semibold text-[#17346b]">{row.aircraft}</th><td className="px-3 py-2.5"><span className="whitespace-nowrap">{row.model}</span><span className="ml-1 text-[10px] text-slate-400">· {row.type}</span></td><td className="px-3 py-2.5 text-right tabular-nums">{formatNumber(row.flightHours)}</td><td className="px-3 py-2.5"><StatusBadge status={row.status} /></td><td className="max-w-44 truncate px-3 py-2.5 text-slate-500" title={row.event}>{row.event}</td></tr>)}</tbody></table></div>;
+  return <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full min-w-[700px] text-left text-xs text-slate-700"><caption className="sr-only">สถานะอากาศยานรายลำ Top 10</caption><thead className="bg-[#17346b] text-[10px] font-semibold text-white"><tr><th scope="col" className="px-3 py-2.5 text-center">#</th><th scope="col" className="px-3 py-2.5">Aircraft ID</th><th scope="col" className="px-3 py-2.5">ประเภท</th><th scope="col" className="px-3 py-2.5 text-right">ชั่วโมงบินสะสม</th><th scope="col" className="px-3 py-2.5">สถานะปัจจุบัน</th><th scope="col" className="px-3 py-2.5">ภารกิจล่าสุด / กำหนดการ</th></tr></thead><tbody>{rows.map((row) => <tr key={row.aircraft} className="border-t border-slate-100 even:bg-slate-50/70 hover:bg-blue-50/70"><td className="px-3 py-2.5 text-center text-slate-400">{row.rank}</td><th scope="row" className="whitespace-nowrap px-3 py-2.5 font-semibold text-[#17346b]">{row.aircraft}</th><td className="px-3 py-2.5"><span className="whitespace-nowrap">{row.model}</span><span className="ml-1 text-[10px] text-slate-400">· {row.type}</span></td><td className="px-3 py-2.5 text-right tabular-nums">{row.flightHours === null ? <span className="text-slate-400">—</span> : formatNumber(row.flightHours)}</td><td className="px-3 py-2.5"><StatusBadge status={row.status} /></td><td className="max-w-44 truncate px-3 py-2.5 text-slate-500" title={row.event}>{row.event}</td></tr>)}</tbody></table></div>;
 }
 
 function UnitAvailability({ rows }: { rows: FleetReadinessSnapshot["unitAvailability"] }) {
@@ -287,6 +284,9 @@ function UnitAvailability({ rows }: { rows: FleetReadinessSnapshot["unitAvailabi
 export function FleetReadinessDashboard({ data, filters, loading, error, onChange, onReset, onRefresh }: Props) {
   const view = useMemo(() => viewModel(data), [data]);
   const availability = view.totalAircraft > 0 ? view.statusCounts.ready / view.totalAircraft * 100 : 0;
+  const availabilityDetail = view.availabilityTrend.length > 1
+    ? `เทียบกับช่วงก่อนหน้า ${view.availabilityTrend.at(-1)!.value - view.availabilityTrend.at(-2)!.value >= 0 ? "+" : ""}${(view.availabilityTrend.at(-1)!.value - view.availabilityTrend.at(-2)!.value).toFixed(1)}%`
+    : "ข้อมูลปัจจุบันจาก Oracle IFSAPP";
   const donut = useMemo(() => donutOption(view.statusCounts), [view.statusCounts]);
   const trend = useMemo(() => trendOption(view.availabilityTrend), [view.availabilityTrend]);
   const byType = useMemo(() => byTypeOption(view.byType), [view.byType]);
@@ -313,7 +313,7 @@ export function FleetReadinessDashboard({ data, filters, loading, error, onChang
     {error && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{error}</span></div>}
     {view.usingSeed && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><Database className="mt-0.5 size-4 shrink-0" /><span>Oracle ยังไม่มีข้อมูล Fleet Readiness ที่พร้อมใช้ จึงแสดงข้อมูล seed จาก MariaDB เพื่อให้ใช้งานและตรวจสอบ layout ได้ก่อน</span></div>}
 
-    <section aria-label="Fleet readiness headline cards" className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6"><HeadlineCard label="อากาศยานทั้งหมด" value={view.totalAircraft} unit="ลำ" detail="Fleet registry" color="#1675dc" icon={<Plane className="size-4" />} /><HeadlineCard label="พร้อมปฏิบัติการ" value={view.statusCounts.ready} unit="ลำ" detail={`${percent(availability)} ของ Fleet ทั้งหมด`} color="#279532" icon={<CheckCircle2 className="size-4" />} /><HeadlineCard label="อยู่ระหว่างซ่อมบำรุง" value={view.statusCounts.maintenance} unit="ลำ" detail={`${percent(view.statusCounts.maintenance / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#f0b429" icon={<Wrench className="size-4" />} /><HeadlineCard label="รออะไหล่" value={view.statusCounts.parts} unit="ลำ" detail={`${percent(view.statusCounts.parts / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#ed6b28" icon={<PackageSearch className="size-4" />} /><HeadlineCard label="หยุดใช้งาน (Grounded)" value={view.statusCounts.grounded} unit="ลำ" detail={`${percent(view.statusCounts.grounded / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#d94b65" icon={<ShieldAlert className="size-4" />} /><HeadlineCard label="Availability Rate" value={availability} unit="%" detail="เทียบกับช่วงก่อนหน้า +3.3%" color="#0d9dc7" icon={<Activity className="size-4" />} /></section>
+    <section aria-label="Fleet readiness headline cards" className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-7"><HeadlineCard label="อากาศยานทั้งหมด" value={view.totalAircraft} unit="ลำ" detail="Fleet registry" color="#1675dc" icon={<Plane className="size-4" />} /><HeadlineCard label="พร้อมปฏิบัติการ" value={view.statusCounts.ready} unit="ลำ" detail={`${percent(availability)} ของ Fleet ทั้งหมด`} color="#279532" icon={<CheckCircle2 className="size-4" />} /><HeadlineCard label="อยู่ระหว่างซ่อมบำรุง" value={view.statusCounts.maintenance} unit="ลำ" detail={`${percent(view.statusCounts.maintenance / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#f0b429" icon={<Wrench className="size-4" />} /><HeadlineCard label="รออะไหล่" value={view.statusCounts.parts} unit="ลำ" detail={`${percent(view.statusCounts.parts / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#ed6b28" icon={<PackageSearch className="size-4" />} /><HeadlineCard label="หยุดใช้งาน (Grounded)" value={view.statusCounts.grounded} unit="ลำ" detail={`${percent(view.statusCounts.grounded / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#d94b65" icon={<ShieldAlert className="size-4" />} /><HeadlineCard label="ไม่ระบุสถานะ" value={view.statusCounts.unknown} unit="ลำ" detail={`${percent(view.statusCounts.unknown / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#64748b" icon={<CircleHelp className="size-4" />} /><HeadlineCard label="Availability Rate" value={availability} unit="%" detail={availabilityDetail} color="#0d9dc7" icon={<Activity className="size-4" />} /></section>
 
     <section aria-label="Fleet readiness charts" className="mt-3 grid gap-3 xl:grid-cols-12"><Panel title="สถานะความพร้อมใช้งาน" subtitle="สัดส่วนอากาศยานทั้งหมดแยกตามสถานะ" icon={<CircleGauge className="size-4" />} className="xl:col-span-4"><div className="relative"><EChart option={donut} label="Donut chart สถานะความพร้อมใช้งาน" className="h-64" /><div className="pointer-events-none absolute left-[31%] top-1/2 -translate-x-1/2 -translate-y-1/2 text-center"><p className="text-3xl font-bold leading-none text-[#17346b]">{view.totalAircraft}</p><p className="mt-1 text-[10px] text-slate-500">ลำ<br />Total</p></div></div></Panel><Panel title="แนวโน้ม Availability Rate" subtitle="ย้อนหลัง 6 เดือน" icon={<TrendingUp className="size-4" />} className="xl:col-span-4"><EChart option={trend} label="Line chart แนวโน้ม Availability Rate" className="h-64" /></Panel><Panel title="อากาศยานตามสถานะ (แยกประเภท)" subtitle="เปรียบเทียบ Helicopter และ Fixed Wing" icon={<BarChart3 className="size-4" />} className="xl:col-span-4"><EChart option={byType} label="Stacked bar chart อากาศยานตามสถานะและประเภท" className="h-64" /></Panel></section>
 

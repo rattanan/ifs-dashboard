@@ -22,6 +22,7 @@ function statusRows(snapshot: FleetReadinessSnapshot) {
     { type: item.type, status: fleetStatusLabels.maintenance, value: item.maintenance },
     { type: item.type, status: fleetStatusLabels.parts, value: item.parts },
     { type: item.type, status: fleetStatusLabels.grounded, value: item.grounded },
+    { type: item.type, status: fleetStatusLabels.unknown, value: item.unknown },
   ]);
 }
 

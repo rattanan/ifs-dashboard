@@ -26,4 +26,12 @@ describe("fleet readiness dashboard", () => {
     expect(metrics.find((metric) => metric?.metricId === "fleet-readiness.kpis")?.summary?.MTBF).toBe(320.5);
     expect(metrics.find((metric) => metric?.metricId === "fleet-readiness.aircraft-list")?.rows).toHaveLength(10);
   });
+
+  it("calculates unit availability from Thai Oracle statuses", () => {
+    const sql = getMetricsForDashboard("fleet-readiness")
+      .find((metric) => metric.id === "fleet-readiness.unit-availability")?.sql;
+
+    expect(sql).toContain("'ใช้งานได้'");
+    expect(sql).toContain('AS "rate"');
+  });
 });

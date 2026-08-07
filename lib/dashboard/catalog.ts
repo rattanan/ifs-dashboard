@@ -13,7 +13,7 @@ const fleetReadiness: MetricDefinition[] = [
     size: "wide",
     sql: `SELECT TYPE AS "type", MCH_CODE AS "aircraft", MCH_NAME AS "model",
         CF$_C_STATUS AS "status", CF$_C_CONDITION AS "condition", SERIAL_NO AS "serialNo",
-        CF$_C_RESPONSE AS "response"
+        CF$_C_RESPONSE AS "response", CF$_C_TSN AS "flightHours"
       FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
       WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site
       ORDER BY TYPE, MCH_CODE FETCH FIRST 30 ROWS ONLY`,
@@ -45,7 +45,7 @@ const fleetReadiness: MetricDefinition[] = [
     size: "lg",
     sql: `SELECT 'Current' AS "label",
         ROUND(CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(CASE
-          WHEN UPPER(NVL(CF$_C_STATUS, '')) IN ('MISSION READY', 'READY', 'AVAILABLE') THEN 1 ELSE 0 END
+          WHEN UPPER(NVL(CF$_C_STATUS, '')) IN ('MISSION READY', 'READY', 'AVAILABLE', 'ใช้งานได้') THEN 1 ELSE 0 END
         ) * 100 / COUNT(*) END, 2) AS "value"
       FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
       WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site`,
@@ -60,7 +60,7 @@ const fleetReadiness: MetricDefinition[] = [
     allowedFilters: ["site"],
     kind: "summary",
     size: "wide",
-    sql: `SELECT COUNT(*) AS "aircraftTotal"
+    sql: `SELECT COUNT(*) AS "aircraftTotal", NVL(SUM(CF$_C_TSN), 0) AS "flightHours"
       FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
       WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site`,
   },
@@ -74,8 +74,9 @@ const fleetReadiness: MetricDefinition[] = [
     allowedFilters: ["site"],
     kind: "table",
     size: "wide",
-    sql: `SELECT TYPE AS "unit", COUNT(*) AS "total",
-        SUM(CASE WHEN UPPER(NVL(CF$_C_STATUS, '')) IN ('MISSION READY', 'READY', 'AVAILABLE') THEN 1 ELSE 0 END) AS "available"
+    sql: `SELECT NVL(TYPE, 'ไม่ระบุ') AS "unit", COUNT(*) AS "total",
+        SUM(CASE WHEN UPPER(NVL(CF$_C_STATUS, '')) IN ('MISSION READY', 'READY', 'AVAILABLE', 'ใช้งานได้') THEN 1 ELSE 0 END) AS "available",
+        ROUND(SUM(CASE WHEN UPPER(NVL(CF$_C_STATUS, '')) IN ('MISSION READY', 'READY', 'AVAILABLE', 'ใช้งานได้') THEN 1 ELSE 0 END) * 100 / COUNT(*), 1) AS "rate"
       FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
       WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site
       GROUP BY TYPE ORDER BY TYPE`,
