@@ -34,6 +34,7 @@ export type FleetReadinessSnapshot = {
   aircraft: Array<{
     rank: number;
     aircraft: string;
+    groupId: string;
     model: string;
     type: "Helicopter" | "Fixed Wing";
     flightHours: number | null;
@@ -123,16 +124,16 @@ export const fleetReadinessSeed: FleetReadinessSnapshot = {
     utilizationDelta: 4.7,
   },
   aircraft: [
-    { rank: 1, aircraft: "POL-1101", model: "AW139", type: "Helicopter", flightHours: 2845, status: "ready", event: "Mission Flight" },
-    { rank: 2, aircraft: "POL-1102", model: "AW139", type: "Helicopter", flightHours: 2650, status: "ready", event: "Training Flight" },
-    { rank: 3, aircraft: "POL-1201", model: "EC145", type: "Helicopter", flightHours: 1920, status: "maintenance", event: "100-Hour Inspection" },
-    { rank: 4, aircraft: "POL-1202", model: "EC145", type: "Helicopter", flightHours: 1875, status: "parts", event: "Waiting for Parts" },
-    { rank: 5, aircraft: "POL-1301", model: "Bell 429", type: "Helicopter", flightHours: 1450, status: "ready", event: "Mission Flight" },
-    { rank: 6, aircraft: "POL-2101", model: "Cessna 208", type: "Fixed Wing", flightHours: 1120, status: "ready", event: "Surveillance Flight" },
-    { rank: 7, aircraft: "POL-2102", model: "DA42", type: "Fixed Wing", flightHours: 980, status: "grounded", event: "Aircraft on Ground" },
-    { rank: 8, aircraft: "POL-1103", model: "AW139", type: "Helicopter", flightHours: 990, status: "maintenance", event: "Phase Inspection" },
-    { rank: 9, aircraft: "POL-1203", model: "EC145", type: "Helicopter", flightHours: 1560, status: "maintenance", event: "Training Flight" },
-    { rank: 10, aircraft: "POL-1302", model: "Bell 429", type: "Helicopter", flightHours: 1305, status: "parts", event: "Waiting for Parts" },
+    { rank: 1, aircraft: "POL-1101", groupId: "AW139", model: "AW139", type: "Helicopter", flightHours: 2845, status: "ready", event: "Mission Flight" },
+    { rank: 2, aircraft: "POL-1102", groupId: "AW139", model: "AW139", type: "Helicopter", flightHours: 2650, status: "ready", event: "Training Flight" },
+    { rank: 3, aircraft: "POL-1201", groupId: "EC145", model: "EC145", type: "Helicopter", flightHours: 1920, status: "maintenance", event: "100-Hour Inspection" },
+    { rank: 4, aircraft: "POL-1202", groupId: "EC145", model: "EC145", type: "Helicopter", flightHours: 1875, status: "parts", event: "Waiting for Parts" },
+    { rank: 5, aircraft: "POL-1301", groupId: "BELL429", model: "Bell 429", type: "Helicopter", flightHours: 1450, status: "ready", event: "Mission Flight" },
+    { rank: 6, aircraft: "POL-2101", groupId: "CESSNA208", model: "Cessna 208", type: "Fixed Wing", flightHours: 1120, status: "ready", event: "Surveillance Flight" },
+    { rank: 7, aircraft: "POL-2102", groupId: "DA42", model: "DA42", type: "Fixed Wing", flightHours: 980, status: "grounded", event: "Aircraft on Ground" },
+    { rank: 8, aircraft: "POL-1103", groupId: "AW139", model: "AW139", type: "Helicopter", flightHours: 990, status: "maintenance", event: "Phase Inspection" },
+    { rank: 9, aircraft: "POL-1203", groupId: "EC145", model: "EC145", type: "Helicopter", flightHours: 1560, status: "maintenance", event: "Training Flight" },
+    { rank: 10, aircraft: "POL-1302", groupId: "BELL429", model: "Bell 429", type: "Helicopter", flightHours: 1305, status: "parts", event: "Waiting for Parts" },
   ],
   unitAvailability: [
     { unit: "กองบังคับการตำรวจ (ส่วนกลาง)", available: 14, total: 19, rate: 72.1 },

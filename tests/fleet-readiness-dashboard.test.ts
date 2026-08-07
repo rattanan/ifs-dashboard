@@ -48,4 +48,13 @@ describe("fleet readiness dashboard", () => {
       expect(sql).not.toContain("CF$_C_TSN");
     }
   });
+
+  it("includes Group ID and MCH Name in the Top 10 aircraft query", () => {
+    const sql = getMetricsForDashboard("fleet-readiness")
+      .find((metric) => metric.id === "fleet-readiness.aircraft-list")?.sql;
+
+    expect(sql).toContain('a.GROUP_ID AS "groupId"');
+    expect(sql).toContain('a.MCH_NAME AS "model"');
+    expect(sql).toContain("FETCH FIRST 10 ROWS ONLY");
+  });
 });

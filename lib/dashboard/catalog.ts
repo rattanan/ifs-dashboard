@@ -11,7 +11,7 @@ const fleetReadiness: MetricDefinition[] = [
     allowedFilters: ["site"],
     kind: "table",
     size: "wide",
-    sql: `SELECT a.TYPE AS "type", a.MCH_CODE AS "aircraft", a.MCH_NAME AS "model",
+    sql: `SELECT a.TYPE AS "type", a.MCH_CODE AS "aircraft", a.GROUP_ID AS "groupId", a.MCH_NAME AS "model",
         a.CF$_C_STATUS AS "status", a.CF$_C_CONDITION AS "condition", a.SERIAL_NO AS "serialNo",
         a.CF$_C_RESPONSE AS "response", tsn.LAST_VALUE AS "flightHours"
       FROM EQUIPMENT_FUNCTIONAL_UIV_CFV a
@@ -22,7 +22,7 @@ const fleetReadiness: MetricDefinition[] = [
         GROUP BY CONTRACT, MCH_CODE
       ) tsn ON tsn.CONTRACT = a.CONTRACT AND tsn.MCH_CODE = a.MCH_CODE
       WHERE a.MCH_TYPE = 'AIRCRAFT' AND a.SUP_MCH_CODE <> 'TXX' AND a.CONTRACT = :site
-      ORDER BY a.TYPE, a.MCH_CODE FETCH FIRST 30 ROWS ONLY`,
+      ORDER BY a.TYPE, a.MCH_CODE FETCH FIRST 10 ROWS ONLY`,
   },
   {
     id: "fleet-readiness.status-summary",

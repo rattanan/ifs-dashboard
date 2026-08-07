@@ -96,6 +96,7 @@ function aircraftRows(source: MetricResult | undefined) {
   return rows.map((row, index) => ({
     rank: numeric(field(row, "rank"), index + 1),
     aircraft: String(field(row, "aircraft", "aircraft id", "mch code") ?? `AIR-${index + 1}`),
+    groupId: String(field(row, "group id", "groupId") ?? "—"),
     model: String(field(row, "model", "description", "type") ?? "—"),
     type: String(field(row, "type", "machine type") ?? "Helicopter") as "Helicopter" | "Fixed Wing",
     flightHours: normalizeFlightHours(field(row, "flight hours", "flightHours", "hours")),
@@ -274,7 +275,53 @@ function SecondaryKpiCard({ item }: { item: SecondaryKpi }) {
 }
 
 function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
-  return <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full min-w-[700px] text-left text-xs text-slate-700"><caption className="sr-only">สถานะอากาศยานรายลำ Top 10</caption><thead className="bg-[#17346b] text-[10px] font-semibold text-white"><tr><th scope="col" className="px-3 py-2.5 text-center">#</th><th scope="col" className="px-3 py-2.5">Aircraft ID</th><th scope="col" className="px-3 py-2.5">ประเภท</th><th scope="col" className="px-3 py-2.5 text-right">ชั่วโมงบินสะสม</th><th scope="col" className="px-3 py-2.5">สถานะปัจจุบัน</th><th scope="col" className="px-3 py-2.5">ภารกิจล่าสุด / กำหนดการ</th></tr></thead><tbody>{rows.map((row) => <tr key={row.aircraft} className="border-t border-slate-100 even:bg-slate-50/70 hover:bg-blue-50/70"><td className="px-3 py-2.5 text-center text-slate-400">{row.rank}</td><th scope="row" className="whitespace-nowrap px-3 py-2.5 font-semibold text-[#17346b]">{row.aircraft}</th><td className="px-3 py-2.5"><span className="whitespace-nowrap">{row.model}</span><span className="ml-1 text-[10px] text-slate-400">· {row.type}</span></td><td className="px-3 py-2.5 text-right tabular-nums">{row.flightHours === null ? <span className="text-slate-400">—</span> : formatNumber(row.flightHours)}</td><td className="px-3 py-2.5"><StatusBadge status={row.status} /></td><td className="max-w-44 truncate px-3 py-2.5 text-slate-500" title={row.event}>{row.event}</td></tr>)}</tbody></table></div>;
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1100px] table-fixed text-left text-xs text-slate-700">
+          <caption className="sr-only">สถานะอากาศยานรายลำ Top 10 พร้อม Group ID และ MCH Name</caption>
+          <colgroup>
+            <col className="w-12" />
+            <col className="w-28" />
+            <col className="w-36" />
+            <col className="w-48" />
+            <col className="w-36" />
+            <col className="w-36" />
+            <col className="w-44" />
+            <col />
+          </colgroup>
+          <thead className="bg-[#17346b] text-[10px] font-semibold uppercase tracking-wide text-white">
+            <tr>
+              <th scope="col" className="px-3 py-3 text-center">#</th>
+              <th scope="col" className="px-3 py-3">Aircraft ID</th>
+              <th scope="col" className="px-3 py-3">Group ID</th>
+              <th scope="col" className="px-3 py-3">MCH Name</th>
+              <th scope="col" className="px-3 py-3">ประเภท</th>
+              <th scope="col" className="px-3 py-3 text-right">ชั่วโมงบินสะสม</th>
+              <th scope="col" className="px-3 py-3">สถานะปัจจุบัน</th>
+              <th scope="col" className="px-3 py-3">ภารกิจล่าสุด / กำหนดการ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.aircraft} className="border-t border-slate-100 even:bg-slate-50/70 hover:bg-blue-50/70">
+                <td className="px-3 py-3 text-center text-slate-400">{row.rank}</td>
+                <th scope="row" className="whitespace-nowrap px-3 py-3 font-bold text-[#17346b]">{row.aircraft}</th>
+                <td className="px-3 py-3">
+                  <span className="inline-flex max-w-full rounded-md bg-indigo-50 px-2 py-1 font-semibold text-indigo-700" title={row.groupId}>{row.groupId}</span>
+                </td>
+                <td className="truncate px-3 py-3 font-medium text-slate-800" title={row.model}>{row.model}</td>
+                <td className="truncate px-3 py-3 text-slate-600" title={row.type}>{row.type}</td>
+                <td className="px-3 py-3 text-right font-semibold tabular-nums text-slate-800">{row.flightHours === null ? <span className="font-normal text-slate-400">—</span> : formatNumber(row.flightHours)}</td>
+                <td className="px-3 py-3"><StatusBadge status={row.status} /></td>
+                <td className="truncate px-3 py-3 text-slate-500" title={row.event}>{row.event}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 function UnitAvailability({ rows }: { rows: FleetReadinessSnapshot["unitAvailability"] }) {
@@ -317,7 +364,14 @@ export function FleetReadinessDashboard({ data, filters, loading, error, onChang
 
     <section aria-label="Fleet readiness charts" className="mt-3 grid gap-3 xl:grid-cols-12"><Panel title="สถานะความพร้อมใช้งาน" subtitle="สัดส่วนอากาศยานทั้งหมดแยกตามสถานะ" icon={<CircleGauge className="size-4" />} className="xl:col-span-4"><div className="relative"><EChart option={donut} label="Donut chart สถานะความพร้อมใช้งาน" className="h-64" /><div className="pointer-events-none absolute left-[31%] top-1/2 -translate-x-1/2 -translate-y-1/2 text-center"><p className="text-3xl font-bold leading-none text-[#17346b]">{view.totalAircraft}</p><p className="mt-1 text-[10px] text-slate-500">ลำ<br />Total</p></div></div></Panel><Panel title="แนวโน้ม Availability Rate" subtitle="ย้อนหลัง 6 เดือน" icon={<TrendingUp className="size-4" />} className="xl:col-span-4"><EChart option={trend} label="Line chart แนวโน้ม Availability Rate" className="h-64" /></Panel><Panel title="อากาศยานตามสถานะ (แยกประเภท)" subtitle="เปรียบเทียบ Helicopter และ Fixed Wing" icon={<BarChart3 className="size-4" />} className="xl:col-span-4"><EChart option={byType} label="Stacked bar chart อากาศยานตามสถานะและประเภท" className="h-64" /></Panel></section>
 
-    <section aria-label="Fleet reliability details" className="mt-3 grid gap-3 xl:grid-cols-12"><Panel title="ตัวชี้วัดสำคัญ" subtitle="Reliability, flight activity และการใช้ประโยชน์ฝูงบิน" icon={<Gauge className="size-4" />} className="xl:col-span-5"><div className="grid grid-cols-2 gap-2.5">{secondaryKpis.map((item) => <SecondaryKpiCard key={item.label} item={item} />)}</div></Panel><Panel title="สถานะอากาศยานรายลำ (Top 10)" subtitle="เรียงตามทะเบียนเครื่องและชั่วโมงบินสะสม" icon={<Plane className="size-4" />} className="xl:col-span-7"><AircraftTable rows={view.aircraft} /></Panel></section>
+    <section aria-label="Fleet reliability details" className="mt-3 grid gap-3">
+      <Panel title="ตัวชี้วัดสำคัญ" subtitle="Reliability, flight activity และการใช้ประโยชน์ฝูงบิน" icon={<Gauge className="size-4" />}>
+        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 xl:grid-cols-6">{secondaryKpis.map((item) => <SecondaryKpiCard key={item.label} item={item} />)}</div>
+      </Panel>
+      <Panel title="สถานะอากาศยานรายลำ (Top 10)" subtitle="ทะเบียนเครื่อง, Group ID, MCH Name, ชั่วโมงบินสะสม และสถานะปัจจุบัน" icon={<Plane className="size-4" />}>
+        <AircraftTable rows={view.aircraft} />
+      </Panel>
+    </section>
 
     <section className="mt-3"><Panel title="Availability Rate ตามฐานบิน" subtitle="เปรียบเทียบอากาศยานพร้อมใช้และ Fleet ทั้งหมดของแต่ละหน่วย" icon={<PlaneTakeoff className="size-4" />}><UnitAvailability rows={view.unitAvailability} /></Panel></section>
 

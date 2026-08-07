@@ -39,6 +39,7 @@ export function buildFleetReadinessSeedMetric(
       result.rows = snapshot.aircraft.map((row) => ({
         Rank: row.rank,
         Aircraft: row.aircraft,
+        "Group ID": row.groupId,
         Model: row.model,
         Type: row.type,
         "Flight Hours": row.flightHours,
