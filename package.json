@@ -10,6 +10,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:seed:fleet": "tsx scripts/seed-fleet-readiness.ts",
     "db:bootstrap": "tsx scripts/bootstrap-admin.ts",
     "oracle:smoke": "tsx scripts/oracle-smoke.ts"
   },

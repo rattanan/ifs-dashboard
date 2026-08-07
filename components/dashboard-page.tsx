@@ -12,6 +12,7 @@ import {
   Gauge,
   LayoutDashboard,
   PackageCheck,
+  Plane,
   RefreshCw,
   ShoppingCart,
   Wrench,
@@ -20,6 +21,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { EChart } from "@/components/echart";
+import { FleetReadinessDashboard } from "@/components/fleet-readiness-dashboard";
 import { MaintenanceDashboard } from "@/components/maintenance-dashboard";
 import { SummaryDashboard } from "@/components/summary-dashboard";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +55,7 @@ const tones: Record<ToneKey, Tone> = {
 
 const themes: Record<DashboardSlug, { accent: string; icon: string; Icon: LucideIcon; defaultTone: ToneKey }> = {
   summary: { accent: "#8d3b91", icon: "bg-[#8d3b91]", Icon: LayoutDashboard, defaultTone: "purple" },
+  "fleet-readiness": { accent: "#1675dc", icon: "bg-[#1675dc]", Icon: Plane, defaultTone: "blue" },
   maintenance: { accent: "#087fb5", icon: "bg-[#087fb5]", Icon: Wrench, defaultTone: "cyan" },
   budget: { accent: "#8d3b91", icon: "bg-[#8d3b91]", Icon: Gauge, defaultTone: "magenta" },
   inventory: { accent: "#279532", icon: "bg-[#279532]", Icon: Boxes, defaultTone: "green" },
@@ -61,6 +64,7 @@ const themes: Record<DashboardSlug, { accent: string; icon: string; Icon: Lucide
 
 const meta: Record<DashboardSlug, { title: string; subtitle: string }> = {
   summary: { title: "Summary", subtitle: "ภาพรวมงบประมาณ · อากาศยาน · WO และความเสี่ยงที่ต้องติดตาม" },
+  "fleet-readiness": { title: "Fleet Readiness", subtitle: "Mission Ready · Grounded · Availability · MTBF และ MTTR" },
   maintenance: { title: "แผนกช่างและวางแผนการซ่อม", subtitle: "ความพร้อมอากาศยาน · WO · MMR · PM และ Component" },
   budget: { title: "แผนกงบประมาณ", subtitle: "งบประมาณประจำปี · ใช้จริง · ผูกพัน · คงเหลือ" },
   inventory: { title: "แผนกคลังพัสดุ", subtitle: "MR · MMR · PO รับเข้า · Turn-in และ Unserviceable" },
@@ -394,10 +398,24 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
     );
   }
 
+  if (dashboard === "fleet-readiness") {
+    return (
+      <FleetReadinessDashboard
+        data={data}
+        filters={filters}
+        loading={loading}
+        error={error}
+        onChange={change}
+        onReset={reset}
+        onRefresh={() => void load(true)}
+      />
+    );
+  }
+
   return <DepartmentDashboard dashboard={dashboard} data={data} filters={filters} loading={loading} error={error} onChange={change} onReset={reset} onRefresh={() => void load(true)} />;
 }
 
-type DepartmentSlug = Exclude<DashboardSlug, "summary" | "maintenance">;
+type DepartmentSlug = Exclude<DashboardSlug, "summary" | "maintenance" | "fleet-readiness">;
 
 type DepartmentDashboardProps = {
   dashboard: DepartmentSlug;

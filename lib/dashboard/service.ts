@@ -2,6 +2,8 @@ import "server-only";
 
 import { getMetric, getMetricsForDashboard } from "./catalog";
 import { getCachedMetric, setCachedMetric } from "./cache";
+import { buildFleetReadinessSeedMetric } from "./fleet-readiness-metrics";
+import { loadFleetReadinessSnapshot } from "./fleet-readiness-store";
 import { executeReadOnly } from "./oracle";
 import { pickQueryBinds } from "./sql-guard";
 import type { DashboardFilters, DashboardResult, DashboardSlug, MetricDefinition, MetricResult } from "./types";
@@ -23,6 +25,12 @@ function normalizeRows(rows: Record<string, unknown>[]) {
   );
 }
 
+async function fleetReadinessFallback(metric: MetricDefinition, filters: DashboardFilters) {
+  if (metric.dashboard !== "fleet-readiness") return undefined;
+  const snapshot = await loadFleetReadinessSnapshot(filters.site);
+  return buildFleetReadinessSeedMetric(metric, filters, snapshot);
+}
+
 export async function loadMetric(
   metric: MetricDefinition,
   filters: DashboardFilters,
@@ -37,6 +45,13 @@ export async function loadMetric(
   try {
     const binds = pickQueryBinds(metric.sql, filters as unknown as Record<string, unknown>);
     const rows = normalizeRows(await executeReadOnly(metric.sql, binds));
+    if (!rows.length) {
+      const fallback = await fleetReadinessFallback(metric, filters);
+      if (fallback) {
+        setCachedMetric(key, fallback);
+        return fallback;
+      }
+    }
     const result: MetricResult = {
       metricId: metric.id,
       title: metric.title,
@@ -49,10 +64,16 @@ export async function loadMetric(
       summary: metric.kind === "kpi" || metric.kind === "summary" || metric.kind === "gauge" ? rows[0] : undefined,
       series: ["bar", "donut", "line"].includes(metric.kind) ? rows : undefined,
       rows: metric.kind === "table" ? rows : undefined,
+      dataSource: "Oracle IFSAPP",
     };
     setCachedMetric(key, result);
     return result;
   } catch (error) {
+    const fallback = await fleetReadinessFallback(metric, filters);
+    if (fallback) {
+      setCachedMetric(key, fallback);
+      return fallback;
+    }
     const stale = getCachedMetric(key, true);
     if (stale) return { ...stale, stale: true, error: "Oracle ไม่ตอบสนอง กำลังแสดงข้อมูลล่าสุด" };
     return {

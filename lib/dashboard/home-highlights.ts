@@ -27,6 +27,7 @@ type HighlightConfig = {
 
 const configs: HighlightConfig[] = [
   { dashboard: "summary", filters: { site: "T10", projectId: "B6800" }, metricIds: ["summary.budget", "summary.aircraft-readiness"] },
+  { dashboard: "fleet-readiness", filters: { site: "T10" }, metricIds: ["fleet-readiness.kpis", "fleet-readiness.status-summary"] },
   { dashboard: "maintenance", filters: { site: "T10" }, metricIds: ["maintenance.wo-status", "maintenance.grounded-list"] },
   { dashboard: "budget", filters: { site: "T10" }, metricIds: ["budget.summary", "budget.utilization"] },
   { dashboard: "inventory", filters: { site: "T10" }, metricIds: ["inventory.mr-status", "inventory.po-receipt"] },
@@ -65,6 +66,15 @@ function readyAircraftCount(metric: MetricResult | undefined) {
   }, 0);
 }
 
+function fleetReadyCount(metric: MetricResult | undefined) {
+  if (!metric) return null;
+  if (metric.error && !metric.rows) return null;
+  return (metric.rows ?? []).reduce((total, row) => {
+    const status = String(row.status ?? "").trim().toLowerCase();
+    return /พร้อม|ready|mission ready|available/.test(status) ? total + numeric(row.value) : total;
+  }, 0);
+}
+
 function latestDate(metrics: MetricResult[]) {
   return metrics.reduce((latest, metric) => {
     return new Date(metric.generatedAt).getTime() > new Date(latest).getTime() ? metric.generatedAt : latest;
@@ -92,6 +102,8 @@ function buildBusinessInsight(
   switch (dashboard) {
     case "summary":
       return `${prefix}งบประมาณปีนี้ ${insightNumber(highlights[0]?.value, highlights[0]?.unit)} และมีอากาศยานพร้อมใช้ ${insightNumber(highlights[1]?.value, highlights[1]?.unit)} ควรติดตามความพร้อมควบคู่กับอัตราเบิกจ่าย`;
+    case "fleet-readiness":
+      return `${prefix}มีอากาศยานพร้อมปฏิบัติการ ${insightNumber(highlights[1]?.value, "ลำ")} จากทั้งหมด ${insightNumber(highlights[0]?.value, "ลำ")} หรือ ${insightNumber(note?.value, "%")} ควรติดตามเครื่องที่รออะไหล่และ Grounded`;
     case "maintenance": {
       const grounded = numeric(highlights[1]?.value);
       return grounded > 0
@@ -123,6 +135,21 @@ function buildHighlights(dashboard: DashboardSlug, metrics: MetricResult[]): Hom
         { label: "งบประมาณปีนี้", value: summaryValue(budget, "estimated"), unit: "บาท" },
         { label: "อากาศยานพร้อมใช้", value: readyAircraftCount(get("summary.aircraft-readiness")), unit: "ลำ" },
       ];
+      break;
+    }
+    case "fleet-readiness": {
+      const status = get("fleet-readiness.status-summary");
+      const kpis = get("fleet-readiness.kpis");
+      const total = summaryValue(kpis, "aircraftTotal") ?? (status?.rows ?? []).reduce((sum, row) => sum + numeric(row.value), 0);
+      highlights = [
+        { label: "อากาศยานทั้งหมด", value: total, unit: "ลำ" },
+        { label: "พร้อมปฏิบัติการ", value: fleetReadyCount(status), unit: "ลำ" },
+      ];
+      note = {
+        label: "Availability Rate",
+        value: Number(total) > 0 && fleetReadyCount(status) !== null ? numeric(fleetReadyCount(status)) / numeric(total) * 100 : null,
+        unit: "%",
+      };
       break;
     }
     case "maintenance":

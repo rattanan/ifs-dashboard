@@ -15,6 +15,13 @@
       "when": 1786017600000,
       "tag": "0001_content_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786084800000,
+      "tag": "0002_fleet_readiness_seeds",
+      "breakpoints": true
     }
   ]
 }

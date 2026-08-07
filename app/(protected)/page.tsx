@@ -33,10 +33,11 @@ const dashboardDefinitions: Array<{
   button: string;
 }> = [
   { slug: "summary", href: "/dashboards/summary", number: "0", title: "Summary", detail: "ภาพรวมงบประมาณ อากาศยาน และงานซ่อม", icon: LayoutDashboard, accent: "#8d3b91", soft: "bg-violet-50", button: "bg-violet-700" },
-  { slug: "maintenance", href: "/dashboards/maintenance", number: "1", title: "แผนกช่างและวางแผนการซ่อม", detail: "การวางแผนและบริหารงานซ่อมบำรุง", icon: Wrench, accent: "#1675dc", soft: "bg-blue-50", button: "bg-blue-600" },
-  { slug: "budget", href: "/dashboards/budget", number: "2", title: "แผนกงบประมาณ", detail: "งบประมาณและการควบคุมค่าใช้จ่าย", icon: ReceiptText, accent: "#07968f", soft: "bg-teal-50", button: "bg-teal-600" },
-  { slug: "inventory", href: "/dashboards/inventory", number: "3", title: "แผนกคลังพัสดุ", detail: "บริหารจัดการวัสดุและคลังสินค้า", icon: Boxes, accent: "#284eb8", soft: "bg-indigo-50", button: "bg-indigo-700" },
-  { slug: "procurement", href: "/dashboards/procurement", number: "4", title: "แผนกจัดซื้อ จ้างซ่อม", detail: "จัดซื้อจัดจ้างและบริหารซัพพลายเออร์", icon: ShoppingCart, accent: "#78429c", soft: "bg-violet-50", button: "bg-violet-700" },
+  { slug: "fleet-readiness", href: "/dashboards/fleet-readiness", number: "1", title: "Fleet Readiness", detail: "Mission Ready, Grounded และ Availability ของฝูงบิน", icon: Plane, accent: "#1675dc", soft: "bg-blue-50", button: "bg-blue-600" },
+  { slug: "maintenance", href: "/dashboards/maintenance", number: "2", title: "แผนกช่างและวางแผนการซ่อม", detail: "การวางแผนและบริหารงานซ่อมบำรุง", icon: Wrench, accent: "#087fb5", soft: "bg-cyan-50", button: "bg-cyan-600" },
+  { slug: "budget", href: "/dashboards/budget", number: "3", title: "แผนกงบประมาณ", detail: "งบประมาณและการควบคุมค่าใช้จ่าย", icon: ReceiptText, accent: "#07968f", soft: "bg-teal-50", button: "bg-teal-600" },
+  { slug: "inventory", href: "/dashboards/inventory", number: "4", title: "แผนกคลังพัสดุ", detail: "บริหารจัดการวัสดุและคลังสินค้า", icon: Boxes, accent: "#284eb8", soft: "bg-indigo-50", button: "bg-indigo-700" },
+  { slug: "procurement", href: "/dashboards/procurement", number: "5", title: "แผนกจัดซื้อ จ้างซ่อม", detail: "จัดซื้อจัดจ้างและบริหารซัพพลายเออร์", icon: ShoppingCart, accent: "#78429c", soft: "bg-violet-50", button: "bg-violet-700" },
 ];
 
 function formatHomeValue(metric: HomeHighlightMetric) {

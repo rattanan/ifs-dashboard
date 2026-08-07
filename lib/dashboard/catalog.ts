@@ -1,5 +1,87 @@
 import type { DashboardSlug, MetricDefinition } from "./types";
 
+const fleetReadiness: MetricDefinition[] = [
+  {
+    id: "fleet-readiness.aircraft-list",
+    dashboard: "fleet-readiness",
+    title: "สถานะอากาศยานรายลำ (Top 10)",
+    description: "ทะเบียนอากาศยาน ชั่วโมงบิน สถานะปัจจุบัน และภารกิจล่าสุด",
+    sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
+    sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT TYPE AS "type", MCH_CODE AS "aircraft", MCH_NAME AS "model",
+        CF$_C_STATUS AS "status", CF$_C_CONDITION AS "condition", SERIAL_NO AS "serialNo",
+        CF$_C_RESPONSE AS "response"
+      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
+      WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site
+      ORDER BY TYPE, MCH_CODE FETCH FIRST 30 ROWS ONLY`,
+  },
+  {
+    id: "fleet-readiness.status-summary",
+    dashboard: "fleet-readiness",
+    title: "สรุปสถานะความพร้อมตามประเภท",
+    description: "จำนวนอากาศยานพร้อมใช้ ซ่อมบำรุง รออะไหล่ และ Grounded",
+    sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
+    sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT TYPE AS "type", CF$_C_STATUS AS "status", COUNT(*) AS "value"
+      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
+      WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site
+      GROUP BY TYPE, CF$_C_STATUS ORDER BY TYPE, COUNT(*) DESC`,
+  },
+  {
+    id: "fleet-readiness.availability-trend",
+    dashboard: "fleet-readiness",
+    title: "แนวโน้ม Availability Rate",
+    description: "อัตราความพร้อมใช้งานย้อนหลังตามช่วงเวลาที่ระบบมีข้อมูล",
+    sourceElementId: "334d7563-0b47-4ef6-8b74-2a0c9b2a35b7",
+    sourceDataSourceId: "a51043d3-fe9d-4aee-b100-3f0077e66c00",
+    allowedFilters: ["site"],
+    kind: "line",
+    size: "lg",
+    sql: `SELECT 'Current' AS "label",
+        ROUND(CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(CASE
+          WHEN UPPER(NVL(CF$_C_STATUS, '')) IN ('MISSION READY', 'READY', 'AVAILABLE') THEN 1 ELSE 0 END
+        ) * 100 / COUNT(*) END, 2) AS "value"
+      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
+      WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site`,
+  },
+  {
+    id: "fleet-readiness.kpis",
+    dashboard: "fleet-readiness",
+    title: "ตัวชี้วัด Fleet Reliability",
+    description: "ตัวชี้วัด MTBF, MTTR, Aircraft on Ground, Flight Hours และ Utilization",
+    sourceElementId: "fleet-readiness-kpis",
+    sourceDataSourceId: "fleet-readiness-kpis",
+    allowedFilters: ["site"],
+    kind: "summary",
+    size: "wide",
+    sql: `SELECT COUNT(*) AS "aircraftTotal"
+      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
+      WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site`,
+  },
+  {
+    id: "fleet-readiness.unit-availability",
+    dashboard: "fleet-readiness",
+    title: "Availability Rate ตามฐานบิน",
+    description: "เปรียบเทียบอากาศยานพร้อมใช้ตามหน่วยบินและพื้นที่รับผิดชอบ",
+    sourceElementId: "fleet-readiness-units",
+    sourceDataSourceId: "fleet-readiness-units",
+    allowedFilters: ["site"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT TYPE AS "unit", COUNT(*) AS "total",
+        SUM(CASE WHEN UPPER(NVL(CF$_C_STATUS, '')) IN ('MISSION READY', 'READY', 'AVAILABLE') THEN 1 ELSE 0 END) AS "available"
+      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
+      WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site
+      GROUP BY TYPE ORDER BY TYPE`,
+  },
+];
+
 const maintenance: MetricDefinition[] = [
   {
     id: "maintenance.aircraft-list",
@@ -895,6 +977,7 @@ const summary: MetricDefinition[] = [
 
 export const metricCatalog: MetricDefinition[] = [
   ...summary,
+  ...fleetReadiness,
   ...maintenance,
   ...budget,
   ...inventory,
@@ -903,6 +986,7 @@ export const metricCatalog: MetricDefinition[] = [
 
 export const dashboardSlugs: DashboardSlug[] = [
   "summary",
+  "fleet-readiness",
   "maintenance",
   "budget",
   "inventory",
@@ -914,6 +998,11 @@ export const dashboardMeta: Record<DashboardSlug, { title: string; subtitle: str
     title: "Summary",
     subtitle: "ภาพรวมงบประมาณ อากาศยาน และงานซ่อมจาก Oracle IFSAPP",
     accent: "purple",
+  },
+  "fleet-readiness": {
+    title: "Fleet Readiness",
+    subtitle: "Mission Ready, Availability, MTBF และ MTTR ของฝูงบิน",
+    accent: "blue",
   },
   maintenance: {
     title: "แผนกช่างและวางแผนการซ่อม",

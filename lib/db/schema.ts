@@ -182,3 +182,19 @@ export const auditLogs = mysqlTable(
   },
   (table) => [index("audit_logs_actor_idx").on(table.actorId)],
 );
+
+export const fleetReadinessSeeds = mysqlTable(
+  "fleet_readiness_seeds",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    site: varchar("site", { length: 10 }).notNull(),
+    snapshot: json("snapshot").$type<Record<string, unknown>>().notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: datetime("updated_at", { mode: "date" }),
+  },
+  (table) => [
+    uniqueIndex("fleet_readiness_seeds_site_uq").on(table.site),
+    index("fleet_readiness_seeds_active_idx").on(table.active),
+  ],
+);

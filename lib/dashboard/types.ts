@@ -1,4 +1,4 @@
-export type DashboardSlug = "summary" | "maintenance" | "budget" | "inventory" | "procurement";
+export type DashboardSlug = "summary" | "fleet-readiness" | "maintenance" | "budget" | "inventory" | "procurement";
 export type MetricKind = "kpi" | "summary" | "bar" | "donut" | "line" | "gauge" | "table";
 
 export interface DashboardFilters {
@@ -40,6 +40,7 @@ export interface MetricResult {
   series?: Record<string, unknown>[];
   rows?: Record<string, unknown>[];
   stale?: boolean;
+  dataSource?: "Oracle IFSAPP" | "MariaDB seed";
   error?: string;
 }
 
