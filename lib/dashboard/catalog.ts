@@ -736,6 +736,24 @@ const procurement: MetricDefinition[] = [
       GROUP BY OBJSTATE ORDER BY COUNT(*) DESC`,
   },
   {
+    id: "procurement.po-lines",
+    dashboard: "procurement",
+    title: "รายการ PO ที่กำลังจัดซื้อ",
+    description: "PO line ที่ยังเปิด พร้อม Part No จำนวน และกำหนดรับ สำหรับเชื่อมกับอะไหล่ที่มีความเสี่ยง",
+    sourceElementId: "3ce67969-99ee-4f30-a3d0-5c4de94c81f3",
+    sourceDataSourceId: "27005b1d-43ec-44fb-8e42-2bb6b1c8f145",
+    allowedFilters: ["site", "buyer", "supplier"],
+    kind: "table",
+    size: "wide",
+    sql: `SELECT ORDER_NO AS "PO", LINE_NO AS "Line", PART_NO AS "Part No",
+        BUY_QTY_DUE AS "Qty", PLANNED_RECEIPT_DATE AS "Planned Receipt", OBJSTATE AS "Status",
+        BUYER_CODE AS "Buyer", VENDOR_NO AS "Supplier"
+      FROM PURCHASE_ORDER_LINE_ALL
+      WHERE CONTRACT = :site AND OBJSTATE IN ('Stopped','Confirmed','Released','Planned')
+        AND BUYER_CODE LIKE NVL(:buyer, '%') AND VENDOR_NO LIKE NVL(:supplier, '%')
+      ORDER BY PLANNED_RECEIPT_DATE, ORDER_NO FETCH FIRST 50 ROWS ONLY`,
+  },
+  {
     id: "procurement.overdue",
     dashboard: "procurement",
     title: "PO เกินกำหนด",
