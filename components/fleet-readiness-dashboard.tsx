@@ -434,7 +434,6 @@ export function FleetReadinessDashboard({ data, filters, loading, error, onChang
   const secondaryKpis: SecondaryKpi[] = [
     { label: "MTBF (ชั่วโมง)", value: view.kpis.mtbf, unit: "ชม.", delta: view.kpis.mtbfDelta, color: "#279532", icon: <Clock3 className="size-4" /> },
     { label: "MTTR (ชั่วโมง)", value: view.kpis.mttr, unit: "ชม.", delta: view.kpis.mttrDelta, color: "#1675dc", icon: <Wrench className="size-4" />, inverse: true },
-    { label: "Aircraft On Ground", value: view.kpis.grounded, unit: "ลำ", delta: view.kpis.groundedDelta, color: "#d94b65", icon: <ShieldAlert className="size-4" /> },
     { label: "Days Since Last Flight", value: view.kpis.daysSinceLastFlight, unit: "วัน", delta: view.kpis.daysSinceLastFlightDelta, color: "#d94b65", icon: <CalendarDays className="size-4" /> },
     { label: "Flight Hours (รวม)", value: view.kpis.flightHours, unit: "ชม.", delta: view.kpis.flightHoursDelta, color: "#279532", icon: <PlaneTakeoff className="size-4" /> },
     { label: "Utilization Rate", value: view.kpis.utilization, unit: "%", delta: view.kpis.utilizationDelta, color: "#1675dc", icon: <Gauge className="size-4" /> },
