@@ -34,4 +34,18 @@ describe("fleet readiness dashboard", () => {
     expect(sql).toContain("'ใช้งานได้'");
     expect(sql).toContain('AS "rate"');
   });
+
+  it("reads accumulated flight hours from the TSN equipment parameter", () => {
+    const metrics = getMetricsForDashboard("fleet-readiness");
+    const aircraftSql = metrics.find((metric) => metric.id === "fleet-readiness.aircraft-list")?.sql;
+    const kpiSql = metrics.find((metric) => metric.id === "fleet-readiness.kpis")?.sql;
+
+    for (const sql of [aircraftSql, kpiSql]) {
+      expect(sql).toContain("EQUIP_OBJ_PARAM");
+      expect(sql).toContain("TEST_POINT_ID = 'TSN'");
+      expect(sql).toContain("PARAMETER_CODE = 'TSN'");
+      expect(sql).toContain("tsn.LAST_VALUE");
+      expect(sql).not.toContain("CF$_C_TSN");
+    }
+  });
 });

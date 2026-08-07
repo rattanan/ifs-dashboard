@@ -11,12 +11,18 @@ const fleetReadiness: MetricDefinition[] = [
     allowedFilters: ["site"],
     kind: "table",
     size: "wide",
-    sql: `SELECT TYPE AS "type", MCH_CODE AS "aircraft", MCH_NAME AS "model",
-        CF$_C_STATUS AS "status", CF$_C_CONDITION AS "condition", SERIAL_NO AS "serialNo",
-        CF$_C_RESPONSE AS "response", CF$_C_TSN AS "flightHours"
-      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
-      WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site
-      ORDER BY TYPE, MCH_CODE FETCH FIRST 30 ROWS ONLY`,
+    sql: `SELECT a.TYPE AS "type", a.MCH_CODE AS "aircraft", a.MCH_NAME AS "model",
+        a.CF$_C_STATUS AS "status", a.CF$_C_CONDITION AS "condition", a.SERIAL_NO AS "serialNo",
+        a.CF$_C_RESPONSE AS "response", tsn.LAST_VALUE AS "flightHours"
+      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV a
+      LEFT JOIN (
+        SELECT CONTRACT, MCH_CODE, MAX(LAST_VALUE) AS LAST_VALUE
+        FROM EQUIP_OBJ_PARAM
+        WHERE TEST_POINT_ID = 'TSN' AND PARAMETER_CODE = 'TSN'
+        GROUP BY CONTRACT, MCH_CODE
+      ) tsn ON tsn.CONTRACT = a.CONTRACT AND tsn.MCH_CODE = a.MCH_CODE
+      WHERE a.MCH_TYPE = 'AIRCRAFT' AND a.SUP_MCH_CODE <> 'TXX' AND a.CONTRACT = :site
+      ORDER BY a.TYPE, a.MCH_CODE FETCH FIRST 30 ROWS ONLY`,
   },
   {
     id: "fleet-readiness.status-summary",
@@ -60,9 +66,15 @@ const fleetReadiness: MetricDefinition[] = [
     allowedFilters: ["site"],
     kind: "summary",
     size: "wide",
-    sql: `SELECT COUNT(*) AS "aircraftTotal", NVL(SUM(CF$_C_TSN), 0) AS "flightHours"
-      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
-      WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site`,
+    sql: `SELECT COUNT(*) AS "aircraftTotal", NVL(SUM(tsn.LAST_VALUE), 0) AS "flightHours"
+      FROM EQUIPMENT_FUNCTIONAL_UIV_CFV a
+      LEFT JOIN (
+        SELECT CONTRACT, MCH_CODE, MAX(LAST_VALUE) AS LAST_VALUE
+        FROM EQUIP_OBJ_PARAM
+        WHERE TEST_POINT_ID = 'TSN' AND PARAMETER_CODE = 'TSN'
+        GROUP BY CONTRACT, MCH_CODE
+      ) tsn ON tsn.CONTRACT = a.CONTRACT AND tsn.MCH_CODE = a.MCH_CODE
+      WHERE a.MCH_TYPE = 'AIRCRAFT' AND a.SUP_MCH_CODE <> 'TXX' AND a.CONTRACT = :site`,
   },
   {
     id: "fleet-readiness.unit-availability",
