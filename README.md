@@ -5,7 +5,7 @@
 ## ฟังก์ชันหลัก
 
 - Login ภายในองค์กร พร้อม Role `ADMIN` และ `READ_ONLY`
-- Home, ข่าว/บทความ และ Dashboard Summary พร้อม 4 แผนก
+- Home, ข่าว/บทความ และ Dashboard Summary พร้อม Fleet Readiness และ 4 แผนก
 - Dashboard แบบ responsive พร้อม ECharts, ตาราง, filter, cache, refresh และ drawer รายละเอียด
 - Chatbot เลือกได้เฉพาะ fixed metric จาก query catalog และแสดง Card ต้นทาง
 - Admin จัดการผู้ใช้ กลุ่มบทความ ข่าว/บทความ สถานะเผยแพร่และ password reset
@@ -16,6 +16,7 @@
 ```bash
 npm install
 npm run db:migrate
+npm run db:seed:fleet # optional Fleet Readiness fallback data
 BOOTSTRAP_ADMIN_USERNAME=admin \
 BOOTSTRAP_ADMIN_PASSWORD='change-this-password' \
 npm run db:bootstrap

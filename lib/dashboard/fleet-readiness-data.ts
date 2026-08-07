@@ -73,7 +73,7 @@ export const fleetReadinessSeed: FleetReadinessSnapshot = {
     { label: "May", value: 64.5 },
   ],
   byType: [
-    { type: "Helicopter", total: 24, ready: 15, maintenance: 5, parts: 3, grounded: 1 },
+    { type: "Helicopter", total: 24, ready: 15, maintenance: 5, parts: 2, grounded: 2 },
     { type: "Fixed Wing", total: 7, ready: 5, maintenance: 2, parts: 0, grounded: 0 },
   ],
   kpis: {
