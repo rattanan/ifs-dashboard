@@ -40,7 +40,6 @@ export function buildFleetReadinessSeedMetric(
         Rank: row.rank,
         Aircraft: row.aircraft,
         "Group ID": row.groupId,
-        Model: row.model,
         Type: row.type,
         "Flight Hours": row.flightHours,
         Status: fleetStatusLabels[row.status],

@@ -90,19 +90,29 @@ function countsFromAircraft(rows: FleetReadinessSnapshot["aircraft"]): FleetStat
   return counts;
 }
 
+function sortAircraftRows(rows: FleetReadinessSnapshot["aircraft"]) {
+  return [...rows]
+    .sort((left, right) => {
+      const hoursDifference = (right.flightHours ?? Number.NEGATIVE_INFINITY)
+        - (left.flightHours ?? Number.NEGATIVE_INFINITY);
+      return hoursDifference || left.aircraft.localeCompare(right.aircraft);
+    })
+    .slice(0, 10)
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
 function aircraftRows(source: MetricResult | undefined) {
   const rows = source?.rows ?? [];
-  if (!rows.length) return fleetReadinessSeed.aircraft;
-  return rows.map((row, index) => ({
+  if (!rows.length) return sortAircraftRows(fleetReadinessSeed.aircraft);
+  return sortAircraftRows(rows.map((row, index) => ({
     rank: numeric(field(row, "rank"), index + 1),
     aircraft: String(field(row, "aircraft", "aircraft id", "mch code") ?? `AIR-${index + 1}`),
     groupId: String(field(row, "group id", "groupId") ?? "—"),
-    model: String(field(row, "model", "description", "type") ?? "—"),
     type: String(field(row, "type", "machine type") ?? "Helicopter") as "Helicopter" | "Fixed Wing",
     flightHours: normalizeFlightHours(field(row, "flight hours", "flightHours", "hours")),
     status: normalizeFleetStatus(field(row, "status", "condition")),
     event: String(field(row, "event", "response", "last activity") ?? "—"),
-  }));
+  })));
 }
 
 function statusCountsFromMetric(source: MetricResult | undefined, fallback: FleetStatusCounts) {
@@ -278,14 +288,13 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] table-fixed text-left text-xs text-slate-700">
-          <caption className="sr-only">สถานะอากาศยานรายลำ Top 10 พร้อม Group ID และ MCH Name</caption>
+        <table className="w-full min-w-[920px] table-fixed text-left text-xs text-slate-700">
+          <caption className="sr-only">สถานะอากาศยานรายลำ Top 10 พร้อม Group ID</caption>
           <colgroup>
             <col className="w-12" />
             <col className="w-28" />
-            <col className="w-36" />
-            <col className="w-48" />
-            <col className="w-36" />
+            <col className="w-40" />
+            <col className="w-40" />
             <col className="w-36" />
             <col className="w-44" />
             <col />
@@ -295,7 +304,6 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
               <th scope="col" className="px-3 py-3 text-center">#</th>
               <th scope="col" className="px-3 py-3">Aircraft ID</th>
               <th scope="col" className="px-3 py-3">Group ID</th>
-              <th scope="col" className="px-3 py-3">MCH Name</th>
               <th scope="col" className="px-3 py-3">ประเภท</th>
               <th scope="col" className="px-3 py-3 text-right">ชั่วโมงบินสะสม</th>
               <th scope="col" className="px-3 py-3">สถานะปัจจุบัน</th>
@@ -310,7 +318,6 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
                 <td className="px-3 py-3">
                   <span className="inline-flex max-w-full rounded-md bg-indigo-50 px-2 py-1 font-semibold text-indigo-700" title={row.groupId}>{row.groupId}</span>
                 </td>
-                <td className="truncate px-3 py-3 font-medium text-slate-800" title={row.model}>{row.model}</td>
                 <td className="truncate px-3 py-3 text-slate-600" title={row.type}>{row.type}</td>
                 <td className="px-3 py-3 text-right font-semibold tabular-nums text-slate-800">{row.flightHours === null ? <span className="font-normal text-slate-400">—</span> : formatNumber(row.flightHours)}</td>
                 <td className="px-3 py-3"><StatusBadge status={row.status} /></td>
@@ -368,7 +375,7 @@ export function FleetReadinessDashboard({ data, filters, loading, error, onChang
       <Panel title="ตัวชี้วัดสำคัญ" subtitle="Reliability, flight activity และการใช้ประโยชน์ฝูงบิน" icon={<Gauge className="size-4" />}>
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 xl:grid-cols-6">{secondaryKpis.map((item) => <SecondaryKpiCard key={item.label} item={item} />)}</div>
       </Panel>
-      <Panel title="สถานะอากาศยานรายลำ (Top 10)" subtitle="ทะเบียนเครื่อง, Group ID, MCH Name, ชั่วโมงบินสะสม และสถานะปัจจุบัน" icon={<Plane className="size-4" />}>
+      <Panel title="สถานะอากาศยานรายลำ (Top 10)" subtitle="เรียงตามชั่วโมงบินสะสมจากมากไปน้อย" icon={<Plane className="size-4" />}>
         <AircraftTable rows={view.aircraft} />
       </Panel>
     </section>
