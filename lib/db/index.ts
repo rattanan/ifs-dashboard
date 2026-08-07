@@ -22,6 +22,7 @@ export function getPool() {
       connectionLimit: 10,
       enableKeepAlive: true,
       timezone: "+07:00",
+      connectTimeout: 5000,
     });
     if (process.env.NODE_ENV !== "production") globalDatabase.__tpadMysqlPool = pool;
   }
