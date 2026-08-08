@@ -27,6 +27,7 @@ import {
   ShieldAlert,
   TrendingUp,
   Wrench,
+  X,
 } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { EChart } from "@/components/echart";
@@ -317,6 +318,10 @@ function StatusBadge({ status }: { status: FleetStatusKey }) {
   return <Badge className="whitespace-nowrap px-2 py-1 text-[10px]" style={{ backgroundColor: statusSoftColors[status], color: statusColors[status] }}>{fleetStatusLabels[status]}</Badge>;
 }
 
+function DismissibleDemoBanner({ icon, children, onDismiss, dismissLabel }: { icon: ReactNode; children: ReactNode; onDismiss: () => void; dismissLabel: string }) {
+  return <div role="status" className="relative mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 py-3 pl-3 pr-12 text-xs text-amber-900"><span className="mt-0.5 shrink-0">{icon}</span><span className="leading-5">{children}</span><button type="button" onClick={onDismiss} aria-label={dismissLabel} title="ปิด" className="absolute right-2 top-2 grid size-8 place-items-center rounded-lg text-amber-700 transition hover:bg-amber-100 hover:text-amber-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"><X className="size-4" aria-hidden="true" /></button></div>;
+}
+
 function HeadlineCard({ label, value, unit, detail, color, icon, selected = false, onClick }: { label: string; value: string | number; unit: string; detail: string; color: string; icon: ReactNode; selected?: boolean; onClick?: () => void }) {
   const content = <><span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: color }} /><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-[11px] font-bold text-[#17346b]" title={label}>{label}</p><p className="mt-3 truncate text-[28px] font-bold leading-none tabular-nums" style={{ color }}>{formatNumber(value)} <span className="text-[11px] font-medium text-slate-400">{unit}</span></p></div><span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `${color}12`, color }}>{icon}</span></div><p className="mt-3 flex items-center justify-between gap-2 truncate border-t border-slate-100 pt-2 text-[10px] text-slate-500"><span className="truncate">{detail}</span>{onClick && <span className="shrink-0 font-bold" style={{ color }}>ดูรายลำ →</span>}</p></>;
   const cardStyle = selected ? { borderColor: color, boxShadow: `0 0 0 2px ${color}24, 0 8px 30px rgba(15,23,42,.08)` } : undefined;
@@ -500,6 +505,8 @@ export function FleetReadinessDashboard({ data, filters, loading, error, onChang
   const view = useMemo(() => viewModel(data), [data]);
   const [aircraftStatusFilter, setAircraftStatusFilter] = useState<"all" | FleetStatusKey>("all");
   const [aircraftPage, setAircraftPage] = useState(1);
+  const [showDemoCoverageBanner, setShowDemoCoverageBanner] = useState(true);
+  const [showDemoTrendBanner, setShowDemoTrendBanner] = useState(true);
   const aircraftTableRef = useRef<HTMLElement>(null);
   const availability = view.totalAircraft > 0 ? view.statusCounts.ready / view.totalAircraft * 100 : 0;
   const availabilityDetail = view.availabilityTrend.length > 1
@@ -548,8 +555,8 @@ export function FleetReadinessDashboard({ data, filters, loading, error, onChang
 
     {error && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{error}</span></div>}
     {view.usingSeed && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><Database className="mt-0.5 size-4 shrink-0" /><span>Oracle ยังไม่มีข้อมูล Fleet Readiness ที่พร้อมใช้ จึงแสดงข้อมูล seed จาก MariaDB เพื่อให้ใช้งานและตรวจสอบ layout ได้ก่อน</span></div>}
-    {view.usingDemoCoverage && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><Database className="mt-0.5 size-4 shrink-0" /><span>โหมด DEMO: Oracle ยังไม่มีข้อมูลสถานะ {view.demoStatuses.map((status) => fleetStatusLabels[status]).join(" และ ")} ระบบจึงเพิ่มรายการตัวอย่างที่มีรหัสขึ้นต้นด้วย DEMO เพื่อให้การ์ด กราฟ และตารางมีข้อมูลสำหรับสาธิต</span></div>}
-    {view.usingDemoTrend && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><TrendingUp className="mt-0.5 size-4 shrink-0" /><span>แนวโน้ม Availability เป็นโหมด DEMO: {view.hasCurrentTrendValue ? "จุดล่าสุดใช้ค่าปัจจุบันจาก Oracle ส่วน 5 จุดย้อนหลังเป็นค่าจำลอง" : "ทั้ง 6 จุดเป็นข้อมูลตัวอย่าง เนื่องจาก Oracle ยังไม่มีค่าที่พร้อมแสดง"}</span></div>}
+    {view.usingDemoCoverage && showDemoCoverageBanner && <DismissibleDemoBanner icon={<Database className="size-4" />} onDismiss={() => setShowDemoCoverageBanner(false)} dismissLabel="ปิดข้อความแจ้งเตือนข้อมูลสถานะ DEMO">โหมด DEMO: Oracle ยังไม่มีข้อมูลสถานะ {view.demoStatuses.map((status) => fleetStatusLabels[status]).join(" และ ")} ระบบจึงเพิ่มรายการตัวอย่างที่มีรหัสขึ้นต้นด้วย DEMO เพื่อให้การ์ด กราฟ และตารางมีข้อมูลสำหรับสาธิต</DismissibleDemoBanner>}
+    {view.usingDemoTrend && showDemoTrendBanner && <DismissibleDemoBanner icon={<TrendingUp className="size-4" />} onDismiss={() => setShowDemoTrendBanner(false)} dismissLabel="ปิดข้อความแจ้งเตือนแนวโน้ม Availability DEMO">แนวโน้ม Availability เป็นโหมด DEMO: {view.hasCurrentTrendValue ? "จุดล่าสุดใช้ค่าปัจจุบันจาก Oracle ส่วน 5 จุดย้อนหลังเป็นค่าจำลอง" : "ทั้ง 6 จุดเป็นข้อมูลตัวอย่าง เนื่องจาก Oracle ยังไม่มีค่าที่พร้อมแสดง"}</DismissibleDemoBanner>}
 
     <section aria-label="Fleet readiness headline cards" className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-7"><HeadlineCard label="อากาศยานทั้งหมด" value={view.totalAircraft} unit="ลำ" detail="Fleet registry" color="#1675dc" icon={<Plane className="size-4" />} selected={aircraftStatusFilter === "all"} onClick={() => drillDown("all")} /><HeadlineCard label="พร้อมปฏิบัติการ" value={view.statusCounts.ready} unit="ลำ" detail={`${percent(availability)} ของ Fleet ทั้งหมด`} color="#279532" icon={<CheckCircle2 className="size-4" />} selected={aircraftStatusFilter === "ready"} onClick={() => drillDown("ready")} /><HeadlineCard label="อยู่ระหว่างซ่อมบำรุง" value={view.statusCounts.maintenance} unit="ลำ" detail={`${percent(view.statusCounts.maintenance / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#f0b429" icon={<Wrench className="size-4" />} selected={aircraftStatusFilter === "maintenance"} onClick={() => drillDown("maintenance")} /><HeadlineCard label="รออะไหล่" value={view.statusCounts.parts} unit="ลำ" detail={`${percent(view.statusCounts.parts / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#ed6b28" icon={<PackageSearch className="size-4" />} selected={aircraftStatusFilter === "parts"} onClick={() => drillDown("parts")} /><HeadlineCard label="หยุดใช้งาน (Grounded)" value={view.statusCounts.grounded} unit="ลำ" detail={`${percent(view.statusCounts.grounded / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#d94b65" icon={<ShieldAlert className="size-4" />} selected={aircraftStatusFilter === "grounded"} onClick={() => drillDown("grounded")} /><HeadlineCard label="ไม่ระบุสถานะ" value={view.statusCounts.unknown} unit="ลำ" detail={`${percent(view.statusCounts.unknown / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#64748b" icon={<CircleHelp className="size-4" />} selected={aircraftStatusFilter === "unknown"} onClick={() => drillDown("unknown")} /><HeadlineCard label="Availability Rate" value={availability} unit="%" detail={availabilityDetail} color="#0d9dc7" icon={<Activity className="size-4" />} /></section>
 
