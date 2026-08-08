@@ -204,3 +204,17 @@ export async function answerQuestion(input: { userId: string; question: string; 
   }));
   return { conversationId, answer, source: sources[0], sources };
 }
+
+export async function clearChatHistory(userId: string) {
+  const db = getDb();
+  const conversations = await db
+    .select({ id: chatConversations.id })
+    .from(chatConversations)
+    .where(eq(chatConversations.userId, userId));
+
+  if (conversations.length) {
+    await db.delete(chatConversations).where(eq(chatConversations.userId, userId));
+  }
+
+  return { deletedConversations: conversations.length };
+}

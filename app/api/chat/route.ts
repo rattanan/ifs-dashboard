@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
-import { answerQuestion } from "@/lib/chat/service";
+import { writeAudit } from "@/lib/audit";
+import { answerQuestion, clearChatHistory } from "@/lib/chat/service";
 import { dashboardFiltersSchema } from "@/lib/dashboard/validation";
 
 const requestSchema = z.object({
@@ -21,3 +22,19 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function DELETE() {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  try {
+    const result = await clearChatHistory(user.id);
+    await writeAudit({
+      actorId: user.id,
+      action: "CHAT_HISTORY_CLEAR",
+      entityType: "CHAT_CONVERSATION",
+      metadata: result,
+    });
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "ไม่สามารถล้างประวัติการสนทนาได้" }, { status: 500 });
+  }
+}
