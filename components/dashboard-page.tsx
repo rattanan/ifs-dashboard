@@ -232,10 +232,6 @@ function chartOption(metric: MetricResult, tone: Tone): EChartsOption {
 
 type KpiItem = { id: string; label: string; value: unknown; unit?: string; stale?: boolean; tone: Tone };
 
-function Sparkline({ color }: { color: string }) {
-  return <svg aria-hidden="true" viewBox="0 0 84 28" className="h-7 w-20 opacity-80"><path d="M1 23 L13 18 L24 21 L35 11 L47 16 L59 7 L70 13 L83 4" fill="none" stroke={color} strokeWidth="2" /><path d="M1 23 L13 18 L24 21 L35 11 L47 16 L59 7 L70 13 L83 4 L83 28 L1 28Z" fill={color} opacity=".12" /></svg>;
-}
-
 function makeKpis(metrics: MetricResult[], dashboard: DashboardSlug): KpiItem[] {
   const direct: KpiItem[] = [];
   for (const metric of metrics) {
@@ -262,21 +258,29 @@ function makeKpis(metrics: MetricResult[], dashboard: DashboardSlug): KpiItem[] 
       tone: toneForMetric(metric, dashboard),
     }));
 
-  return [...direct, ...aggregates].slice(0, 8);
+  const items = [...direct, ...aggregates];
+  if (dashboard === "procurement") {
+    const order = [
+      "procurement.rfq-status-headline",
+      "procurement.pr-count",
+      "procurement.po-status-headline",
+      "procurement.overdue",
+      "procurement.delivery-rate",
+    ];
+    return order.flatMap((id) => items.filter((item) => item.id === id));
+  }
+  return items.slice(0, 8);
 }
 
 function KpiStrip({ items, dashboard }: { items: KpiItem[]; dashboard: DepartmentSlug }) {
   if (!items.length) return null;
-  const gridClass = dashboard === "budget" || dashboard === "inventory"
-    ? "sm:grid-cols-2 xl:grid-cols-4"
-    : "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6";
+  const gridClass = dashboard === "procurement"
+    ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+    : "sm:grid-cols-2 xl:grid-cols-4";
   return (
     <section aria-label="ตัวชี้วัดสำคัญ" className={`grid gap-3 ${gridClass}`}>
       {items.map((item, index) => {
         const Icon = metricIcons[index % metricIcons.length];
-        if (dashboard === "procurement") {
-          return <div key={item.id} className="relative min-w-0 overflow-hidden rounded-2xl border p-4 shadow-[0_8px_30px_rgba(15,23,42,.06)]" style={{ backgroundColor: item.tone.bg, borderColor: item.tone.border, color: item.tone.fg }}><span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: item.tone.accent }} /><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-[11px] font-bold" title={item.label}>{item.label}</p><p className="mt-3 truncate text-[28px] font-bold leading-none" style={{ color: item.tone.accent }}>{compactValue(item.value)} <span className="text-[10px] font-medium text-slate-400">{item.unit}</span></p></div><span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: item.tone.soft, color: item.tone.accent }}><Icon className="size-4" /></span></div><div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2"><p className="text-[9px] font-medium" style={{ color: item.tone.muted }}>{item.stale ? "ข้อมูลสำรองล่าสุด" : "ข้อมูลจาก Oracle IFSAPP"}</p><Sparkline color={item.tone.accent} /></div></div>;
-        }
         return (
           <div key={item.id} className="relative min-h-[148px] min-w-0 overflow-hidden rounded-2xl border p-4 shadow-[0_8px_30px_rgba(15,23,42,.06)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(15,23,42,.1)] sm:p-5" style={{ background: `linear-gradient(145deg, ${item.tone.bg} 48%, ${item.tone.soft} 100%)`, borderColor: item.tone.border, color: item.tone.fg }}>
             <span className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: item.tone.accent }} />
@@ -309,6 +313,12 @@ function metricLayout(metric: MetricResult, dashboard: DashboardSlug) {
       chartHeight: metric.kind === "table" ? "min-h-[210px]" : "h-60",
     };
   }
+  if (dashboard === "procurement") {
+    if (["procurement.rfq-status", "procurement.po-status"].includes(metric.metricId)) return { span: "xl:col-span-6", chartHeight: "h-60" };
+    if (metric.metricId === "procurement.po-lines") return { span: "xl:col-span-12", chartHeight: "min-h-[230px]" };
+    if (["procurement.delivery-rate", "procurement.quality", "procurement.reliability"].includes(metric.metricId)) return { span: "xl:col-span-4", chartHeight: "h-60" };
+    return { span: "xl:col-span-6", chartHeight: metric.kind === "table" ? "min-h-[210px]" : "h-60" };
+  }
   return {
     span: metric.kind === "table" || metric.size === "wide" ? "xl:col-span-6" : metric.size === "lg" ? "xl:col-span-4" : "xl:col-span-3",
     chartHeight: metric.kind === "table" ? "min-h-[170px]" : metric.size === "lg" ? "h-56" : "h-48",
@@ -327,7 +337,7 @@ function MetricCard({ metric, dashboard }: { metric: MetricResult; dashboard: Da
   const tone = toneForMetric(metric, dashboard);
   const sourceRows = metric.rows ?? metric.series ?? (metric.summary ? [metric.summary] : []);
   const { span, chartHeight } = metricLayout(metric, dashboard);
-  const polished = dashboard === "budget" || dashboard === "inventory";
+  const polished = dashboard === "budget" || dashboard === "inventory" || dashboard === "procurement";
 
   return (
     <Dialog.Root>
