@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AUTHORIZED_DATA_FOOTER, finalizeChatAnswer } from "../lib/chat/format";
 import { extractFilters, mapQuestionToIntent, planQuestion, resolvePlanMetrics } from "../lib/chat/intent";
 
 describe("chat intent mapping", () => {
@@ -26,6 +27,15 @@ describe("chat intent mapping", () => {
   });
 
   it("extracts only approved filters", () => expect(extractFilters("สถานะอากาศยาน T101 โครงการ B6201")).toMatchObject({ site: "T101", projectId: "B6201" }));
+});
+
+describe("chat answer footer", () => {
+  it("replaces the legacy warning with the authorized-data footer exactly once", () => {
+    const answer = finalizeChatAnswer("สรุปข้อมูล\n\nคำเตือน: โปรดตรวจสอบ Card ต้นทางก่อนตัดสินใจ");
+
+    expect(answer).toBe(`สรุปข้อมูล\n\n${AUTHORIZED_DATA_FOOTER}`);
+    expect(answer.split(AUTHORIZED_DATA_FOOTER)).toHaveLength(2);
+  });
 });
 
 describe("executive conversation scenario", () => {

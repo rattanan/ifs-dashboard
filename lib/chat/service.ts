@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db";
 import { chatConversations, chatMessages } from "@/lib/db/schema";
 import { loadMetric } from "@/lib/dashboard/service";
 import type { DashboardFilters, MetricDefinition, MetricResult } from "@/lib/dashboard/types";
+import { finalizeChatAnswer } from "./format";
 import { extractFilters, planQuestion, resolvePlanMetrics, type ChatPlan } from "./intent";
 
 type HistoryMessage = {
@@ -88,7 +89,6 @@ function executiveFallback(metrics: LoadedMetric[]) {
     `1. มอบหมายทีมซ่อมทบทวน WO ตามสถานะที่ค้าง${statusEvidence ? ` (${statusEvidence})` : ""} และกำหนดผู้รับผิดชอบ/วันปิดงาน`,
     `2. ให้คลังตรวจสอบอะไหล่ Critical ที่ต่ำกว่าจุดสั่งซื้อ ${lowStock.length} รายการ และยืนยันรายการที่กระทบ WO ก่อน`,
     `3. ให้จัดซื้อติดตาม PO ที่ยังเปิด ${poLines.length} รายการ${overdue === undefined ? "" : ` โดยมีรายการเกินกำหนด ${overdue} รายการ`} พร้อมรายงานกำหนดรับใหม่`,
-    "ตัวเลขข้างต้นอ้างอิงข้อมูล Card ปัจจุบัน โปรดเปิด Card ต้นทางเพื่อตรวจสอบรายการก่อนสั่งการ",
   ].join("\n");
 }
 
@@ -102,7 +102,7 @@ async function aiSummary(question: string, plan: ChatPlan, metrics: LoadedMetric
   const baseUrl = process.env.AI_BASE_URL;
   const apiKey = process.env.AI_API_KEY;
   const model = process.env.AI_MODEL;
-  if (!baseUrl || !apiKey || !model) return localSummary(plan, metrics);
+  if (!baseUrl || !apiKey || !model) return finalizeChatAnswer(localSummary(plan, metrics));
 
   const data = metrics.map(({ definition, result }) => ({ dashboard: definition.dashboard, ...compactMetric(result) }));
   const recentConversation = history.slice(-6).map((message) => ({
@@ -116,7 +116,7 @@ async function aiSummary(question: string, plan: ChatPlan, metrics: LoadedMetric
     "เมื่อต้องเชื่อมอะไหล่กับ MR/PR/PO ให้ยืนยันด้วย Part No ที่ตรงกัน ถ้าเชื่อมไม่ได้ต้องบอกว่าไม่พบข้อมูลยืนยัน",
     "เมื่อถามสาเหตุ ให้แยกข้อเท็จจริงออกจากข้อสันนิษฐาน และระบุสิ่งที่ควรตรวจสอบเพิ่ม",
     "เมื่อถามว่าควรสั่งการอะไร ให้ตอบเป็นรายการ Executive Action ที่มีลำดับความสำคัญ จำนวนรายการจากข้อมูล และหน่วยงานที่ควรรับผิดชอบ",
-    "ปิดท้ายด้วยคำเตือนสั้น ๆ ให้ตรวจสอบ Card ต้นทางก่อนตัดสินใจ",
+    "ปิดท้ายทุกคำตอบด้วยบรรทัด Based on currently available and authorized data ตามข้อความนี้ทุกตัวอักษร และห้ามมีคำเตือนหรือข้อความอื่นต่อท้าย",
   ].join("\n");
 
   try {
@@ -137,9 +137,10 @@ async function aiSummary(question: string, plan: ChatPlan, metrics: LoadedMetric
     if (!response.ok) throw new Error("AI unavailable");
     const body = await response.json() as { choices?: { message?: { content?: string } }[] };
     const generated = body.choices?.[0]?.message?.content?.trim();
-    return generated?.replace(/\*\*/g, "").replace(/^\s*\*\s*/gm, "• ") || localSummary(plan, metrics);
+    const answer = generated?.replace(/\*\*/g, "").replace(/^\s*\*\s*/gm, "• ") || localSummary(plan, metrics);
+    return finalizeChatAnswer(answer);
   } catch {
-    return localSummary(plan, metrics);
+    return finalizeChatAnswer(localSummary(plan, metrics));
   }
 }
 

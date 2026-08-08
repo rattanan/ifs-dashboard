@@ -7,6 +7,7 @@ import {
   BarChart3,
   Boxes,
   CalendarDays,
+  CircleGauge,
   Clock3,
   Database,
   Gauge,
@@ -15,6 +16,7 @@ import {
   Plane,
   RefreshCw,
   ShoppingCart,
+  TrendingUp,
   Wrench,
   X,
 } from "lucide-react";
@@ -228,11 +230,11 @@ function chartOption(metric: MetricResult, tone: Tone): EChartsOption {
   };
 }
 
+type KpiItem = { id: string; label: string; value: unknown; unit?: string; stale?: boolean; tone: Tone };
+
 function Sparkline({ color }: { color: string }) {
   return <svg aria-hidden="true" viewBox="0 0 84 28" className="h-7 w-20 opacity-80"><path d="M1 23 L13 18 L24 21 L35 11 L47 16 L59 7 L70 13 L83 4" fill="none" stroke={color} strokeWidth="2" /><path d="M1 23 L13 18 L24 21 L35 11 L47 16 L59 7 L70 13 L83 4 L83 28 L1 28Z" fill={color} opacity=".12" /></svg>;
 }
-
-type KpiItem = { id: string; label: string; value: unknown; unit?: string; stale?: boolean; tone: Tone };
 
 function makeKpis(metrics: MetricResult[], dashboard: DashboardSlug): KpiItem[] {
   const direct: KpiItem[] = [];
@@ -263,23 +265,30 @@ function makeKpis(metrics: MetricResult[], dashboard: DashboardSlug): KpiItem[] 
   return [...direct, ...aggregates].slice(0, 8);
 }
 
-function KpiStrip({ items }: { items: KpiItem[] }) {
+function KpiStrip({ items, dashboard }: { items: KpiItem[]; dashboard: DepartmentSlug }) {
   if (!items.length) return null;
+  const gridClass = dashboard === "budget" || dashboard === "inventory"
+    ? "sm:grid-cols-2 xl:grid-cols-4"
+    : "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6";
   return (
-    <section aria-label="ตัวชี้วัดสำคัญ" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+    <section aria-label="ตัวชี้วัดสำคัญ" className={`grid gap-3 ${gridClass}`}>
       {items.map((item, index) => {
         const Icon = metricIcons[index % metricIcons.length];
+        if (dashboard === "procurement") {
+          return <div key={item.id} className="relative min-w-0 overflow-hidden rounded-2xl border p-4 shadow-[0_8px_30px_rgba(15,23,42,.06)]" style={{ backgroundColor: item.tone.bg, borderColor: item.tone.border, color: item.tone.fg }}><span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: item.tone.accent }} /><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-[11px] font-bold" title={item.label}>{item.label}</p><p className="mt-3 truncate text-[28px] font-bold leading-none" style={{ color: item.tone.accent }}>{compactValue(item.value)} <span className="text-[10px] font-medium text-slate-400">{item.unit}</span></p></div><span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: item.tone.soft, color: item.tone.accent }}><Icon className="size-4" /></span></div><div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2"><p className="text-[9px] font-medium" style={{ color: item.tone.muted }}>{item.stale ? "ข้อมูลสำรองล่าสุด" : "ข้อมูลจาก Oracle IFSAPP"}</p><Sparkline color={item.tone.accent} /></div></div>;
+        }
         return (
-          <div key={item.id} className="relative min-w-0 overflow-hidden rounded-2xl border p-4 shadow-[0_8px_30px_rgba(15,23,42,.06)]" style={{ backgroundColor: item.tone.bg, borderColor: item.tone.border, color: item.tone.fg }}>
-            <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: item.tone.accent }} />
-            <div className="flex items-start justify-between gap-2">
+          <div key={item.id} className="relative min-h-[148px] min-w-0 overflow-hidden rounded-2xl border p-4 shadow-[0_8px_30px_rgba(15,23,42,.06)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(15,23,42,.1)] sm:p-5" style={{ background: `linear-gradient(145deg, ${item.tone.bg} 48%, ${item.tone.soft} 100%)`, borderColor: item.tone.border, color: item.tone.fg }}>
+            <span className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: item.tone.accent }} />
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-bold" title={item.label}>{item.label}</p>
-                <p className="mt-3 truncate text-[28px] font-bold leading-none" style={{ color: item.tone.accent }}>{compactValue(item.value)} <span className="text-[10px] font-medium text-slate-400">{item.unit}</span></p>
+                <p className="text-[10px] font-bold uppercase tracking-[.12em]" style={{ color: item.tone.muted }}>Key metric {String(index + 1).padStart(2, "0")}</p>
+                <p className="mt-1 truncate text-xs font-bold" title={item.label}>{item.label}</p>
               </div>
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: item.tone.soft, color: item.tone.accent }}><Icon className="size-4" /></span>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl shadow-sm" style={{ backgroundColor: item.tone.soft, color: item.tone.accent }}><Icon className="size-[18px]" /></span>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2"><p className="text-[9px] font-medium" style={{ color: item.tone.muted }}>{item.stale ? "ข้อมูลสำรองล่าสุด" : "ข้อมูลจาก Oracle IFSAPP"}</p><Sparkline color={item.tone.accent} /></div>
+            <p className="mt-5 truncate text-[28px] font-bold leading-none tabular-nums sm:text-[32px]" style={{ color: item.tone.accent }}>{compactValue(item.value)} <span className="text-[10px] font-medium text-slate-400">{item.unit}</span></p>
+            <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-2"><span className={`size-1.5 rounded-full ${item.stale ? "bg-amber-400" : "bg-emerald-500"}`} /><p className="text-[9px] font-medium" style={{ color: item.tone.muted }}>{item.stale ? "ข้อมูลสำรองล่าสุด" : "ข้อมูลจาก Oracle IFSAPP"}</p></div>
           </div>
         );
       })}
@@ -287,27 +296,55 @@ function KpiStrip({ items }: { items: KpiItem[] }) {
   );
 }
 
+function metricLayout(metric: MetricResult, dashboard: DashboardSlug) {
+  if (dashboard === "budget") {
+    if (metric.metricId === "budget.utilization") return { span: "xl:col-span-4", chartHeight: "h-64" };
+    if (metric.metricId === "budget.cost-elements") return { span: "xl:col-span-8", chartHeight: "h-64" };
+    if (metric.metricId === "budget.projects") return { span: "xl:col-span-12", chartHeight: "min-h-[220px]" };
+    return { span: "xl:col-span-6", chartHeight: metric.kind === "table" ? "min-h-[210px]" : "h-60" };
+  }
+  if (dashboard === "inventory") {
+    return {
+      span: "xl:col-span-6",
+      chartHeight: metric.kind === "table" ? "min-h-[210px]" : "h-60",
+    };
+  }
+  return {
+    span: metric.kind === "table" || metric.size === "wide" ? "xl:col-span-6" : metric.size === "lg" ? "xl:col-span-4" : "xl:col-span-3",
+    chartHeight: metric.kind === "table" ? "min-h-[170px]" : metric.size === "lg" ? "h-56" : "h-48",
+  };
+}
+
+function metricIcon(metric: MetricResult) {
+  if (metric.kind === "table") return <Database className="size-[18px]" />;
+  if (metric.kind === "gauge") return <Gauge className="size-[18px]" />;
+  if (metric.kind === "donut") return <CircleGauge className="size-[18px]" />;
+  if (metric.kind === "line") return <TrendingUp className="size-[18px]" />;
+  return <BarChart3 className="size-[18px]" />;
+}
+
 function MetricCard({ metric, dashboard }: { metric: MetricResult; dashboard: DashboardSlug }) {
   const tone = toneForMetric(metric, dashboard);
   const sourceRows = metric.rows ?? metric.series ?? (metric.summary ? [metric.summary] : []);
-  const span = metric.kind === "table" || metric.size === "wide" ? "xl:col-span-6" : metric.size === "lg" ? "xl:col-span-4" : "xl:col-span-3";
-  const chartHeight = metric.kind === "table" ? "min-h-[170px]" : metric.size === "lg" ? "h-56" : "h-48";
+  const { span, chartHeight } = metricLayout(metric, dashboard);
+  const polished = dashboard === "budget" || dashboard === "inventory";
 
   return (
     <Dialog.Root>
-      <section className={`min-w-0 overflow-hidden rounded-2xl border shadow-[0_8px_30px_rgba(15,23,42,.06)] ${span}`} style={{ backgroundColor: tone.bg, borderColor: tone.border, color: tone.fg }}>
-        <header className="flex min-h-16 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5">
-          <div className="flex min-w-0 items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: tone.soft, color: tone.accent }}><BarChart3 className="size-4" /></span><div className="min-w-0"><h2 className="truncate text-sm font-bold" title={metric.title}>{metric.title}</h2><p className="mt-0.5 truncate text-[10px]" style={{ color: tone.muted }}>{metric.description}</p></div></div>
+      <section className={`${polished ? "flex h-full flex-col transition hover:shadow-[0_14px_38px_rgba(15,23,42,.09)]" : ""} min-w-0 overflow-hidden rounded-2xl border shadow-[0_8px_30px_rgba(15,23,42,.06)] ${span}`} style={{ backgroundColor: tone.bg, borderColor: tone.border, color: tone.fg }}>
+        {polished && <span className="h-1 w-full shrink-0" style={{ background: `linear-gradient(90deg, ${tone.accent}, ${tone.palette[1]})` }} />}
+        <header className={`flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5 ${polished ? "min-h-[76px]" : "min-h-16"}`}>
+          <div className="flex min-w-0 items-start gap-3"><span className={`grid shrink-0 place-items-center rounded-xl ${polished ? "size-10 shadow-sm" : "size-9"}`} style={{ backgroundColor: tone.soft, color: tone.accent }}>{polished ? metricIcon(metric) : <BarChart3 className="size-4" />}</span><div className="min-w-0"><h2 className="truncate text-sm font-bold" title={metric.title}>{metric.title}</h2><p className={polished ? "mt-1 line-clamp-2 text-[10px] leading-4" : "mt-0.5 truncate text-[10px]"} style={{ color: tone.muted }}>{metric.description}</p></div></div>
           {metric.stale && <Badge className="shrink-0 rounded-sm bg-amber-200 px-1.5 py-0.5 text-[9px] text-amber-950">Stale</Badge>}
         </header>
-        <div className="p-4 sm:p-5">
+        <div className={`${polished ? "flex flex-1 flex-col" : ""} p-4 sm:p-5`}>
           {metric.error && <div className="mb-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-[10px] text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{metric.error}</span></div>}
           {!sourceRows.length && !metric.error && <div className="grid min-h-32 place-items-center text-xs" style={{ color: tone.muted }}>ไม่พบข้อมูลตามตัวกรองนี้</div>}
           {metric.kind === "table" && <div className={chartHeight}><MetricTable rows={metric.rows ?? []} caption={metric.title} compact /></div>}
           {metric.kind === "summary" && <div className="grid grid-cols-2 gap-2 py-2">{Object.entries(metric.summary ?? {}).map(([key, value]) => <div key={key} className="rounded-xl p-3" style={{ backgroundColor: tone.soft }}><p className="truncate text-[9px] font-semibold uppercase" style={{ color: tone.muted }}>{summaryLabels[key] ?? key}</p><p className="mt-1 text-lg font-bold" style={{ color: tone.accent }}>{compactValue(value)}</p></div>)}</div>}
           {metric.kind === "kpi" && <div className="my-2 rounded-xl border p-4" style={{ backgroundColor: tone.soft, borderColor: tone.border }}><p className="text-4xl font-bold" style={{ color: tone.accent }}>{compactValue(metric.summary?.value)} <span className="text-xs font-medium text-slate-500">{metric.valueLabel}</span></p><p className="mt-1 text-[10px]" style={{ color: tone.muted }}>อัปเดต {formatDateTime(metric.generatedAt)}</p></div>}
           {metric.kind !== "table" && metric.kind !== "summary" && metric.kind !== "kpi" && <><EChart option={chartOption(metric, tone)} label={`กราฟ ${metric.title}`} className={chartHeight} /><div className="sr-only"><MetricTable rows={metric.series ?? []} caption={`ข้อมูลกราฟ ${metric.title}`} /></div></>}
-          {sourceRows.length > 0 && <Dialog.Trigger asChild><button type="button" className="mt-2 min-h-9 text-[10px] font-semibold underline-offset-2 hover:underline" style={{ color: tone.accent }}>ดูรายละเอียด ({sourceRows.length} รายการ) →</button></Dialog.Trigger>}
+          {sourceRows.length > 0 && <Dialog.Trigger asChild><button type="button" className={polished ? "mt-auto min-h-10 self-start rounded-lg px-2 text-[10px] font-bold transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300" : "mt-2 min-h-9 text-[10px] font-semibold underline-offset-2 hover:underline"} style={{ color: tone.accent }}>ดูรายละเอียด ({sourceRows.length} รายการ) →</button></Dialog.Trigger>}
         </div>
       </section>
       <Dialog.Portal>
@@ -449,8 +486,11 @@ export function DepartmentDashboard({ dashboard, data, filters, loading, error, 
       </div></section>
 
       {error && <div className="mb-3 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{error}</span></div>}
-      {loading && !data ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-32 animate-pulse rounded-2xl bg-slate-200" />)}</div> : <KpiStrip items={kpis} />}
-      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">{cards.map((metric) => <MetricCard key={metric.metricId} metric={metric} dashboard={dashboard} />)}</div>
+      {loading && !data ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-36 animate-pulse rounded-2xl bg-slate-200" />)}</div> : <KpiStrip items={kpis} dashboard={dashboard} />}
+      <section aria-label="รายละเอียด Dashboard" className="mt-5">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2"><div><p className="text-[10px] font-bold uppercase tracking-[.16em]" style={{ color: themes[dashboard].accent }}>Operational insight</p><h2 className="mt-1 text-lg font-bold text-[#17346b]">รายละเอียดและรายการที่ต้องติดตาม</h2></div><Badge className="rounded-full bg-slate-100 px-3 py-1 text-[10px] text-slate-600">{cards.length} Cards</Badge></div>
+        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-12">{cards.map((metric) => <MetricCard key={metric.metricId} metric={metric} dashboard={dashboard} />)}</div>
+      </section>
       <footer className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3 text-[10px] text-slate-500"><p className="flex items-center gap-1"><Clock3 className="size-3.5" /> Last updated: {data ? formatDateTime(data.generatedAt) : "—"}</p><p className="flex items-center gap-1"><Database className="size-3.5" /> Oracle IFSAPP · Read only · Cache 5 นาที</p></footer>
     </div>
   );
