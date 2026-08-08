@@ -8,9 +8,10 @@ export function BrandMark({ compact = false, className }: { compact?: boolean; c
         <Image src="/assets/tpad-crest.png" alt="ตรากองบินตำรวจ" fill sizes="44px" className="object-cover" />
       </span>
       {!compact && (
-        <span className="min-w-0">
-          <span className="block truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-300">Thai Police Aviation</span>
-          <span className="block truncate text-base font-bold text-white">TPAD Executive</span>
+        <span className="min-w-0 leading-tight" aria-label="TPAD Aviation Intelligence & Command Center (AICC)">
+          <span className="block whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.08em] text-sky-300">TPAD Aviation Intelligence</span>
+          <span className="block whitespace-nowrap text-[11px] font-bold text-white">&amp; Command Center</span>
+          <span className="block text-[10px] font-bold text-sky-200">(AICC)</span>
         </span>
       )}
     </div>

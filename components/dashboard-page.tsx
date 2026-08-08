@@ -322,9 +322,7 @@ function MetricCard({ metric, dashboard }: { metric: MetricResult; dashboard: Da
 }
 
 export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
-  const [filters, setFilters] = useState<DashboardFilters>(
-    dashboard === "summary" ? { site: "T10", projectId: "B6800" } : { site: "T10" },
-  );
+  const [filters, setFilters] = useState<DashboardFilters>({ site: "T10" });
   const [data, setData] = useState<DashboardResult>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -368,7 +366,7 @@ export function DashboardPage({ dashboard }: { dashboard: DashboardSlug }) {
   const reset = () => {
     setLoading(true);
     setError(undefined);
-    setFilters(dashboard === "summary" ? { site: "T10", projectId: "B6800" } : { site: "T10" });
+    setFilters({ site: "T10" });
   };
   if (dashboard === "summary") {
     return (

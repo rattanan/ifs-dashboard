@@ -59,6 +59,10 @@ export const fleetStatusLabels: Record<FleetStatusKey, string> = {
 export function normalizeFleetStatus(value: unknown): FleetStatusKey {
   const status = String(value ?? "").trim().toLowerCase();
   if (!status) return "unknown";
+  // A specific maintenance condition takes precedence over a generic
+  // unavailable/grounded status from IFS.
+  if (status.includes("part") || status.includes("อะไหล่") || status.includes("waiting")) return "parts";
+  if (status.includes("maint") || status.includes("ซ่อม") || status.includes("repair")) return "maintenance";
   if (
     status.includes("ground") ||
     status.includes("หยุด") ||
@@ -66,8 +70,6 @@ export function normalizeFleetStatus(value: unknown): FleetStatusKey {
     status.includes("ใช้งานไม่ได้") ||
     status.includes("ใช้ราชการไม่ได้")
   ) return "grounded";
-  if (status.includes("part") || status.includes("อะไหล่") || status.includes("waiting")) return "parts";
-  if (status.includes("maint") || status.includes("ซ่อม") || status.includes("repair")) return "maintenance";
   if (
     status.includes("mission ready") ||
     status === "ready" ||
@@ -78,11 +80,30 @@ export function normalizeFleetStatus(value: unknown): FleetStatusKey {
   return "unknown";
 }
 
+export const fleetReadinessDemoStatusAircraft: FleetReadinessSnapshot["aircraft"] = [
+  { rank: 9001, aircraft: "DEMO-MNT-01", groupId: "AW139", type: "Helicopter", flightHours: 1240, status: "maintenance", event: "DEMO · 100-Hour Inspection" },
+  { rank: 9002, aircraft: "DEMO-MNT-02", groupId: "EC145", type: "Helicopter", flightHours: 980, status: "maintenance", event: "DEMO · Phase Inspection" },
+  { rank: 9003, aircraft: "DEMO-PRT-01", groupId: "BELL429", type: "Helicopter", flightHours: 760, status: "parts", event: "DEMO · Waiting for Parts" },
+];
+
 export function normalizeFlightHours(value: unknown): number | null {
   if (value === null || value === undefined) return null;
   if (typeof value === "string" && !value.trim()) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function buildDemoAvailabilityTrend(currentValue: number, generatedAt: string) {
+  const offsets = [-5.4, -3.1, -4.0, -1.8, -2.6, 0];
+  const currentDate = new Date(generatedAt);
+  const anchor = Number.isNaN(currentDate.getTime()) ? new Date() : currentDate;
+  const formatter = new Intl.DateTimeFormat("th-TH", { month: "short", timeZone: "Asia/Bangkok" });
+
+  return offsets.map((offset, index) => {
+    const month = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() - (offsets.length - index - 1), 1));
+    const value = Math.min(100, Math.max(0, currentValue + offset));
+    return { label: formatter.format(month), value: Math.round(value * 10) / 10 };
+  });
 }
 
 export const fleetReadinessSeed: FleetReadinessSnapshot = {

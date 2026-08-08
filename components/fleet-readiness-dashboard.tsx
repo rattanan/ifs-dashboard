@@ -28,13 +28,15 @@ import {
   TrendingUp,
   Wrench,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { EChart } from "@/components/echart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { DashboardFilters, DashboardResult, MetricResult } from "@/lib/dashboard/types";
 import {
+  buildDemoAvailabilityTrend,
+  fleetReadinessDemoStatusAircraft,
   fleetReadinessSeed,
   fleetStatusLabels,
   normalizeFlightHours,
@@ -95,6 +97,10 @@ function countsFromAircraft(rows: FleetReadinessSnapshot["aircraft"]): FleetStat
   return counts;
 }
 
+function statusFromRow(row: Record<string, unknown>) {
+  return normalizeFleetStatus([field(row, "condition"), field(row, "status")].filter(Boolean).join(" "));
+}
+
 function aircraftRows(source: MetricResult | undefined) {
   const rows = source?.rows ?? [];
   if (!rows.length) return fleetReadinessSeed.aircraft;
@@ -104,7 +110,7 @@ function aircraftRows(source: MetricResult | undefined) {
     groupId: String(field(row, "group id", "groupId") ?? "—"),
     type: String(field(row, "type", "machine type") ?? "Helicopter") as "Helicopter" | "Fixed Wing",
     flightHours: normalizeFlightHours(field(row, "flight hours", "flightHours", "hours")),
-    status: normalizeFleetStatus(field(row, "status", "condition")),
+    status: statusFromRow(row),
     event: String(field(row, "event", "response", "last activity") ?? "—"),
   }));
 }
@@ -112,7 +118,7 @@ function aircraftRows(source: MetricResult | undefined) {
 function statusCountsFromMetric(source: MetricResult | undefined, fallback: FleetStatusCounts) {
   const rows = source?.rows ?? [];
   const counts: FleetStatusCounts = { ready: 0, maintenance: 0, parts: 0, grounded: 0, unknown: 0 };
-  for (const row of rows) counts[normalizeFleetStatus(field(row, "status", "condition"))] += numeric(field(row, "value", "count"));
+  for (const row of rows) counts[statusFromRow(row)] += numeric(field(row, "value", "count"));
   const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
   return total > 0 ? counts : fallback;
 }
@@ -123,13 +129,41 @@ function byTypeFromMetric(source: MetricResult | undefined, fallback: FleetReadi
   for (const row of rows) {
     const type = String(field(row, "type", "unit") ?? "Helicopter");
     const current = grouped.get(type) ?? { type: type as "Helicopter" | "Fixed Wing", total: 0, ready: 0, maintenance: 0, parts: 0, grounded: 0, unknown: 0 };
-    const status = normalizeFleetStatus(field(row, "status", "condition"));
+    const status = statusFromRow(row);
     const value = numeric(field(row, "value", "count"));
     current[status] += value;
     current.total += value;
     grouped.set(type, current);
   }
   return grouped.size ? Array.from(grouped.values()) : fallback;
+}
+
+function addDemoStatusCoverage(
+  aircraft: FleetReadinessSnapshot["aircraft"],
+  statusCounts: FleetStatusCounts,
+  byType: FleetReadinessSnapshot["byType"],
+) {
+  const aircraftCounts = countsFromAircraft(aircraft);
+  const normalizedCounts = { ...statusCounts };
+  for (const status of ["maintenance", "parts"] as const) {
+    if (normalizedCounts[status] === 0 && aircraftCounts[status] > 0) normalizedCounts[status] = aircraftCounts[status];
+  }
+
+  const missingStatuses = (["maintenance", "parts"] as const).filter((status) => normalizedCounts[status] === 0);
+  const demoAircraft = fleetReadinessDemoStatusAircraft.filter((row) => missingStatuses.includes(row.status as "maintenance" | "parts"));
+  if (!demoAircraft.length) return { aircraft, statusCounts: normalizedCounts, byType, demoStatuses: [] as FleetStatusKey[] };
+
+  const nextCounts = { ...normalizedCounts };
+  const nextByType = byType.map((row) => ({ ...row }));
+  for (const row of demoAircraft) {
+    nextCounts[row.status] += 1;
+    const type = nextByType.find((item) => item.type === row.type);
+    if (type) {
+      type[row.status] += 1;
+      type.total += 1;
+    }
+  }
+  return { aircraft: [...aircraft, ...demoAircraft], statusCounts: nextCounts, byType: nextByType, demoStatuses: missingStatuses };
 }
 
 function unitRows(source: MetricResult | undefined, fallback: FleetReadinessSnapshot["unitAvailability"]) {
@@ -151,9 +185,9 @@ function viewModel(data: DashboardResult | undefined) {
   const trend = metric(data, "fleet-readiness.availability-trend");
   const kpis = metric(data, "fleet-readiness.kpis");
   const units = metric(data, "fleet-readiness.unit-availability");
-  const aircraft = aircraftRows(list);
-  const statusCounts = statusCountsFromMetric(status, countsFromAircraft(aircraft.length ? aircraft : fleetReadinessSeed.aircraft));
-  const actualTotal = Object.values(statusCounts).reduce((sum, value) => sum + value, 0);
+  const sourceAircraft = aircraftRows(list);
+  const sourceStatusCounts = statusCountsFromMetric(status, countsFromAircraft(sourceAircraft.length ? sourceAircraft : fleetReadinessSeed.aircraft));
+  const sourceByType = byTypeFromMetric(status, fleetReadinessSeed.byType);
   const summary = kpis?.summary ?? {};
   const readKpi = (name: string, fallback: number) => numeric(field(summary, name), fallback);
   const sources = new Set(
@@ -162,16 +196,29 @@ function viewModel(data: DashboardResult | undefined) {
       .filter((source): source is "Oracle IFSAPP" | "MariaDB seed" => Boolean(source)),
   );
   const usingSeed = !data || sources.has("MariaDB seed");
-  const sourceLabel = sources.size > 1 ? "Oracle IFSAPP + MariaDB seed" : usingSeed ? "MariaDB seed" : "Oracle IFSAPP";
+  const demoCoverage = usingSeed
+    ? { aircraft: sourceAircraft, statusCounts: sourceStatusCounts, byType: sourceByType, demoStatuses: [] as FleetStatusKey[] }
+    : addDemoStatusCoverage(sourceAircraft, sourceStatusCounts, sourceByType);
+  const usingDemoCoverage = demoCoverage.demoStatuses.length > 0;
   const trendRows = (trend?.series ?? [])
     .map((row) => ({ label: String(field(row, "label") ?? "—"), value: numeric(field(row, "value")) }))
     .filter((row) => row.value > 0);
+  const usingDemoTrend = !usingSeed && trendRows.length < 2;
+  const availabilityTrend = trendRows.length >= 2
+    ? trendRows
+    : trendRows.length === 1
+      ? buildDemoAvailabilityTrend(trendRows[0].value, data?.generatedAt ?? new Date().toISOString())
+      : fleetReadinessSeed.availabilityTrend;
+  const sourceLabel = usingDemoCoverage || usingDemoTrend
+    ? "Oracle IFSAPP + DEMO"
+    : sources.size > 1 ? "Oracle IFSAPP + MariaDB seed" : usingSeed ? "MariaDB seed" : "Oracle IFSAPP";
+  const actualTotal = Object.values(demoCoverage.statusCounts).reduce((sum, value) => sum + value, 0);
 
   return {
     totalAircraft: actualTotal || readKpi("aircraftTotal", fleetReadinessSeed.totalAircraft),
-    statusCounts,
-    byType: byTypeFromMetric(status, fleetReadinessSeed.byType),
-    availabilityTrend: trendRows.length ? trendRows : fleetReadinessSeed.availabilityTrend,
+    statusCounts: demoCoverage.statusCounts,
+    byType: demoCoverage.byType,
+    availabilityTrend,
     kpis: {
       mtbf: readKpi("mtbf", fleetReadinessSeed.kpis.mtbf),
       mtbfDelta: readKpi("mtbfDelta", fleetReadinessSeed.kpis.mtbfDelta),
@@ -186,10 +233,14 @@ function viewModel(data: DashboardResult | undefined) {
       utilization: readKpi("utilization", fleetReadinessSeed.kpis.utilization),
       utilizationDelta: readKpi("utilizationDelta", fleetReadinessSeed.kpis.utilizationDelta),
     },
-    aircraft,
+    aircraft: demoCoverage.aircraft,
     unitAvailability: unitRows(units, fleetReadinessSeed.unitAvailability),
     sourceLabel,
     usingSeed,
+    usingDemoCoverage,
+    usingDemoTrend,
+    hasCurrentTrendValue: trendRows.length === 1,
+    demoStatuses: demoCoverage.demoStatuses,
     generatedAt: data?.generatedAt ?? fleetReadinessSeed.generatedAt,
   };
 }
@@ -266,8 +317,11 @@ function StatusBadge({ status }: { status: FleetStatusKey }) {
   return <Badge className="whitespace-nowrap px-2 py-1 text-[10px]" style={{ backgroundColor: statusSoftColors[status], color: statusColors[status] }}>{fleetStatusLabels[status]}</Badge>;
 }
 
-function HeadlineCard({ label, value, unit, detail, color, icon }: { label: string; value: string | number; unit: string; detail: string; color: string; icon: ReactNode }) {
-  return <Card className="relative min-w-0 overflow-hidden rounded-2xl border-slate-200 p-4 shadow-[0_8px_30px_rgba(15,23,42,.06)]"><span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: color }} /><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-[11px] font-bold text-[#17346b]" title={label}>{label}</p><p className="mt-3 truncate text-[28px] font-bold leading-none tabular-nums" style={{ color }}>{formatNumber(value)} <span className="text-[11px] font-medium text-slate-400">{unit}</span></p></div><span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `${color}12`, color }}>{icon}</span></div><p className="mt-3 truncate border-t border-slate-100 pt-2 text-[10px] text-slate-500">{detail}</p></Card>;
+function HeadlineCard({ label, value, unit, detail, color, icon, selected = false, onClick }: { label: string; value: string | number; unit: string; detail: string; color: string; icon: ReactNode; selected?: boolean; onClick?: () => void }) {
+  const content = <><span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: color }} /><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-[11px] font-bold text-[#17346b]" title={label}>{label}</p><p className="mt-3 truncate text-[28px] font-bold leading-none tabular-nums" style={{ color }}>{formatNumber(value)} <span className="text-[11px] font-medium text-slate-400">{unit}</span></p></div><span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `${color}12`, color }}>{icon}</span></div><p className="mt-3 flex items-center justify-between gap-2 truncate border-t border-slate-100 pt-2 text-[10px] text-slate-500"><span className="truncate">{detail}</span>{onClick && <span className="shrink-0 font-bold" style={{ color }}>ดูรายลำ →</span>}</p></>;
+  const cardStyle = selected ? { borderColor: color, boxShadow: `0 0 0 2px ${color}24, 0 8px 30px rgba(15,23,42,.08)` } : undefined;
+  if (!onClick) return <Card className="relative min-w-0 overflow-hidden rounded-2xl border-slate-200 p-4 shadow-[0_8px_30px_rgba(15,23,42,.06)]" style={cardStyle}>{content}</Card>;
+  return <Card className="relative min-w-0 overflow-hidden rounded-2xl border-slate-200 p-0 shadow-[0_8px_30px_rgba(15,23,42,.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_34px_rgba(15,23,42,.11)]" style={cardStyle}><button type="button" aria-pressed={selected} aria-label={`กรองตารางตาม ${label} จำนวน ${formatNumber(value)} ${unit}`} onClick={onClick} className="relative block w-full p-4 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200">{content}</button></Card>;
 }
 
 type SecondaryKpi = { label: string; value: number; unit: string; delta: number; color: string; icon: ReactNode; inverse?: boolean };
@@ -318,12 +372,13 @@ function SortableHeader({
   );
 }
 
-function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
+function AircraftTable({ rows, statusFilter, onStatusFilterChange, page, onPageChange }: { rows: FleetReadinessSnapshot["aircraft"]; statusFilter: "all" | FleetStatusKey; onStatusFilterChange: (status: "all" | FleetStatusKey) => void; page: number; onPageChange: (page: number) => void }) {
   const [sortKey, setSortKey] = useState<AircraftSortKey>("flightHours");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const sortedRows = useMemo(() => [...rows].sort((left, right) => {
+  const statusCounts = useMemo(() => countsFromAircraft(rows), [rows]);
+  const filteredRows = useMemo(() => statusFilter === "all" ? rows : rows.filter((row) => row.status === statusFilter), [rows, statusFilter]);
+  const sortedRows = useMemo(() => [...filteredRows].sort((left, right) => {
     const leftValue = aircraftSortValue(left, sortKey);
     const rightValue = aircraftSortValue(right, sortKey);
     if (leftValue === null && rightValue === null) return left.aircraft.localeCompare(right.aircraft);
@@ -333,7 +388,7 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
       ? leftValue - rightValue
       : String(leftValue).localeCompare(String(rightValue), "th", { numeric: true, sensitivity: "base" });
     return sortDirection === "asc" ? comparison : -comparison;
-  }), [rows, sortDirection, sortKey]);
+  }), [filteredRows, sortDirection, sortKey]);
   const pageCount = Math.max(1, Math.ceil(sortedRows.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const startIndex = (currentPage - 1) * pageSize;
@@ -347,14 +402,32 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
       setSortKey(key);
       setSortDirection(key === "flightHours" ? "desc" : "asc");
     }
-    setPage(1);
+    onPageChange(1);
   }
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50/80 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[11px] font-bold text-[#17346b]">กรองสถานะอากาศยาน</p>
+          <p className="text-[10px] text-slate-500">เลือกดูเฉพาะสถานะที่ต้องการในตาราง</p>
+        </div>
+        <label htmlFor="aircraft-status-filter" className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
+          <span>สถานะ</span>
+          <select
+            id="aircraft-status-filter"
+            value={statusFilter}
+            onChange={(event) => onStatusFilterChange(event.target.value as "all" | FleetStatusKey)}
+            className="h-10 min-w-56 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+          >
+            <option value="all">ทุกสถานะ ({rows.length})</option>
+            {statusOrder.map((status) => <option key={status} value={status}>{fleetStatusLabels[status]} ({statusCounts[status]})</option>)}
+          </select>
+        </label>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[920px] table-fixed text-left text-xs text-slate-700">
-          <caption className="sr-only">สถานะอากาศยานรายลำ พร้อมการเรียงข้อมูลและแบ่งหน้า</caption>
+          <caption className="sr-only">สถานะอากาศยานรายลำ พร้อมตัวกรองสถานะ การเรียงข้อมูล และแบ่งหน้า</caption>
           <colgroup>
             <col className="w-12" />
             <col className="w-28" />
@@ -379,7 +452,7 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
             {pageRows.map((row, index) => (
               <tr key={row.aircraft} className="border-t border-slate-100 even:bg-slate-50/70 hover:bg-blue-50/70">
                 <td className="px-3 py-3 text-center text-slate-400">{startIndex + index + 1}</td>
-                <th scope="row" className="whitespace-nowrap px-3 py-3 font-bold text-[#17346b]">{row.aircraft}</th>
+                <th scope="row" className="whitespace-nowrap px-3 py-3 font-bold text-[#17346b]">{row.aircraft}{row.aircraft.startsWith("DEMO-") && <Badge className="ml-1.5 bg-amber-100 px-1.5 py-0.5 text-[8px] text-amber-800">DEMO</Badge>}</th>
                 <td className="px-3 py-3">
                   <span className="inline-flex max-w-full rounded-md bg-indigo-50 px-2 py-1 font-semibold text-indigo-700" title={row.groupId}>{row.groupId}</span>
                 </td>
@@ -389,6 +462,7 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
                 <td className="truncate px-3 py-3 text-slate-500" title={row.event}>{row.event}</td>
               </tr>
             ))}
+            {!pageRows.length && <tr><td colSpan={7} className="h-28 px-3 text-center text-xs text-slate-400">ไม่พบอากาศยานในสถานะที่เลือก</td></tr>}
           </tbody>
         </table>
       </div>
@@ -399,7 +473,7 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
             รายการต่อหน้า
             <select
               value={pageSize}
-              onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
+              onChange={(event) => { setPageSize(Number(event.target.value)); onPageChange(1); }}
               className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
             >
               <option value="10">10</option>
@@ -409,9 +483,9 @@ function AircraftTable({ rows }: { rows: FleetReadinessSnapshot["aircraft"] }) {
           </label>
         </div>
         <nav aria-label="แบ่งหน้ารายการอากาศยาน" className="flex items-center justify-between gap-2 sm:justify-end">
-          <Button variant="secondary" size="sm" onClick={() => setPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} aria-label="หน้าก่อนหน้า"><ChevronLeft className="size-4" /> ก่อนหน้า</Button>
+          <Button variant="secondary" size="sm" onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} aria-label="หน้าก่อนหน้า"><ChevronLeft className="size-4" /> ก่อนหน้า</Button>
           <span className="min-w-20 text-center text-[11px] font-semibold text-slate-600">หน้า {currentPage} / {pageCount}</span>
-          <Button variant="secondary" size="sm" onClick={() => setPage(Math.min(pageCount, currentPage + 1))} disabled={currentPage === pageCount} aria-label="หน้าถัดไป">ถัดไป <ChevronRight className="size-4" /></Button>
+          <Button variant="secondary" size="sm" onClick={() => onPageChange(Math.min(pageCount, currentPage + 1))} disabled={currentPage === pageCount} aria-label="หน้าถัดไป">ถัดไป <ChevronRight className="size-4" /></Button>
         </nav>
       </div>
     </div>
@@ -424,9 +498,14 @@ function UnitAvailability({ rows }: { rows: FleetReadinessSnapshot["unitAvailabi
 
 export function FleetReadinessDashboard({ data, filters, loading, error, onChange, onReset, onRefresh }: Props) {
   const view = useMemo(() => viewModel(data), [data]);
+  const [aircraftStatusFilter, setAircraftStatusFilter] = useState<"all" | FleetStatusKey>("all");
+  const [aircraftPage, setAircraftPage] = useState(1);
+  const aircraftTableRef = useRef<HTMLElement>(null);
   const availability = view.totalAircraft > 0 ? view.statusCounts.ready / view.totalAircraft * 100 : 0;
   const availabilityDetail = view.availabilityTrend.length > 1
-    ? `เทียบกับช่วงก่อนหน้า ${view.availabilityTrend.at(-1)!.value - view.availabilityTrend.at(-2)!.value >= 0 ? "+" : ""}${(view.availabilityTrend.at(-1)!.value - view.availabilityTrend.at(-2)!.value).toFixed(1)}%`
+    ? view.usingDemoTrend
+      ? "จุดล่าสุดจาก Oracle · ประวัติย้อนหลัง DEMO"
+      : `เทียบกับช่วงก่อนหน้า ${view.availabilityTrend.at(-1)!.value - view.availabilityTrend.at(-2)!.value >= 0 ? "+" : ""}${(view.availabilityTrend.at(-1)!.value - view.availabilityTrend.at(-2)!.value).toFixed(1)}%`
     : "ข้อมูลปัจจุบันจาก Oracle IFSAPP";
   const donut = useMemo(() => donutOption(view.statusCounts), [view.statusCounts]);
   const trend = useMemo(() => trendOption(view.availabilityTrend), [view.availabilityTrend]);
@@ -439,30 +518,49 @@ export function FleetReadinessDashboard({ data, filters, loading, error, onChang
     { label: "Utilization Rate", value: view.kpis.utilization, unit: "%", delta: view.kpis.utilizationDelta, color: "#1675dc", icon: <Gauge className="size-4" /> },
   ];
 
+  function drillDown(status: "all" | FleetStatusKey) {
+    setAircraftStatusFilter(status);
+    setAircraftPage(1);
+    requestAnimationFrame(() => aircraftTableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  function changeAircraftStatusFilter(status: "all" | FleetStatusKey) {
+    setAircraftStatusFilter(status);
+    setAircraftPage(1);
+  }
+
+  function resetDashboard() {
+    setAircraftStatusFilter("all");
+    setAircraftPage(1);
+    onReset();
+  }
+
   return <div className="min-h-screen bg-[#f7f9fc] px-3 py-3 sm:px-4 lg:px-5">
     <header className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-r from-[#eef0ff] via-white to-[#eaf4ff] p-4 shadow-sm sm:p-5">
       <PlaneTakeoff className="pointer-events-none absolute -bottom-16 right-4 size-64 text-sky-700/[.06]" />
       <div className="relative flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-[#1675dc] to-[#8d3b91] text-white shadow-lg shadow-blue-200"><CircleGauge className="size-6" /></span><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#8d3b91]">TPAD IFSAPP · Fleet Analytics</p><h1 className="text-2xl font-bold leading-tight text-[#17346b] sm:text-3xl">Fleet Readiness Dashboard</h1><p className="mt-0.5 text-xs text-slate-500">มุมมองผู้บริหารสำหรับ Mission Ready, Grounded, Availability, MTBF และ MTTR</p></div></div>
-        <div className="flex items-center gap-2 rounded-xl border border-white/80 bg-white/80 px-3 py-2 shadow-sm backdrop-blur"><div className="text-right"><p className="flex items-center justify-end gap-1.5 text-[10px] font-bold text-[#17346b]"><Database className={view.usingSeed ? "size-3.5 text-amber-500" : "size-3.5 text-emerald-600"} /> {view.sourceLabel}</p><p className="mt-0.5 text-[9px] text-slate-400">ข้อมูลล่าสุด {formatDateTime(view.generatedAt)}</p></div><span className={`size-2 rounded-full ${view.usingSeed ? "bg-amber-400" : "bg-emerald-500"}`} aria-label={view.usingSeed ? "ใช้ข้อมูล seed" : "เชื่อมต่อ Oracle แล้ว"} /> </div>
+        <div className="flex items-center gap-2 rounded-xl border border-white/80 bg-white/80 px-3 py-2 shadow-sm backdrop-blur"><div className="text-right"><p className="flex items-center justify-end gap-1.5 text-[10px] font-bold text-[#17346b]"><Database className={view.usingSeed || view.usingDemoCoverage || view.usingDemoTrend ? "size-3.5 text-amber-500" : "size-3.5 text-emerald-600"} /> {view.sourceLabel}</p><p className="mt-0.5 text-[9px] text-slate-400">ข้อมูลล่าสุด {formatDateTime(view.generatedAt)}</p></div><span className={`size-2 rounded-full ${view.usingSeed || view.usingDemoCoverage || view.usingDemoTrend ? "bg-amber-400" : "bg-emerald-500"}`} aria-label={view.usingSeed ? "ใช้ข้อมูล seed" : view.usingDemoCoverage || view.usingDemoTrend ? "มีข้อมูล DEMO เสริม" : "เชื่อมต่อ Oracle แล้ว"} /> </div>
       </div>
     </header>
 
-    <section aria-label="ตัวกรอง Fleet Readiness" className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[180px_220px_1fr_auto]"><label className="text-[11px] font-semibold text-slate-600"><span className="mb-1 block">Site</span><select value={filters.site} onChange={(event) => onChange("site", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"><option value="T10">T10</option><option value="T101">T101</option></select></label><label className="text-[11px] font-semibold text-slate-600"><span className="mb-1 block">ช่วงข้อมูล</span><select defaultValue="6" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"><option value="1">30 วันล่าสุด</option><option value="6">6 เดือนล่าสุด</option><option value="12">12 เดือนล่าสุด</option></select></label><div className="hidden lg:block" /><div className="flex items-end gap-2"><Button variant="secondary" onClick={onReset} disabled={loading}><RotateCcw className="size-4" /> รีเซ็ต</Button><Button onClick={onRefresh} disabled={loading} className="bg-[#1675dc] hover:bg-blue-700"><RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} /> รีเฟรช</Button></div></div></section>
+    <section aria-label="ตัวกรอง Fleet Readiness" className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[180px_220px_1fr_auto]"><label className="text-[11px] font-semibold text-slate-600"><span className="mb-1 block">Site</span><select value={filters.site} onChange={(event) => onChange("site", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"><option value="T10">T10</option><option value="T101">T101</option></select></label><label className="text-[11px] font-semibold text-slate-600"><span className="mb-1 block">ช่วงข้อมูล</span><select defaultValue="6" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"><option value="1">30 วันล่าสุด</option><option value="6">6 เดือนล่าสุด</option><option value="12">12 เดือนล่าสุด</option></select></label><div className="hidden lg:block" /><div className="flex items-end gap-2"><Button variant="secondary" onClick={resetDashboard} disabled={loading}><RotateCcw className="size-4" /> รีเซ็ต</Button><Button onClick={onRefresh} disabled={loading} className="bg-[#1675dc] hover:bg-blue-700"><RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} /> รีเฟรช</Button></div></div></section>
 
     {error && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{error}</span></div>}
     {view.usingSeed && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><Database className="mt-0.5 size-4 shrink-0" /><span>Oracle ยังไม่มีข้อมูล Fleet Readiness ที่พร้อมใช้ จึงแสดงข้อมูล seed จาก MariaDB เพื่อให้ใช้งานและตรวจสอบ layout ได้ก่อน</span></div>}
+    {view.usingDemoCoverage && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><Database className="mt-0.5 size-4 shrink-0" /><span>โหมด DEMO: Oracle ยังไม่มีข้อมูลสถานะ {view.demoStatuses.map((status) => fleetStatusLabels[status]).join(" และ ")} ระบบจึงเพิ่มรายการตัวอย่างที่มีรหัสขึ้นต้นด้วย DEMO เพื่อให้การ์ด กราฟ และตารางมีข้อมูลสำหรับสาธิต</span></div>}
+    {view.usingDemoTrend && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><TrendingUp className="mt-0.5 size-4 shrink-0" /><span>แนวโน้ม Availability เป็นโหมด DEMO: {view.hasCurrentTrendValue ? "จุดล่าสุดใช้ค่าปัจจุบันจาก Oracle ส่วน 5 จุดย้อนหลังเป็นค่าจำลอง" : "ทั้ง 6 จุดเป็นข้อมูลตัวอย่าง เนื่องจาก Oracle ยังไม่มีค่าที่พร้อมแสดง"}</span></div>}
 
-    <section aria-label="Fleet readiness headline cards" className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-7"><HeadlineCard label="อากาศยานทั้งหมด" value={view.totalAircraft} unit="ลำ" detail="Fleet registry" color="#1675dc" icon={<Plane className="size-4" />} /><HeadlineCard label="พร้อมปฏิบัติการ" value={view.statusCounts.ready} unit="ลำ" detail={`${percent(availability)} ของ Fleet ทั้งหมด`} color="#279532" icon={<CheckCircle2 className="size-4" />} /><HeadlineCard label="อยู่ระหว่างซ่อมบำรุง" value={view.statusCounts.maintenance} unit="ลำ" detail={`${percent(view.statusCounts.maintenance / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#f0b429" icon={<Wrench className="size-4" />} /><HeadlineCard label="รออะไหล่" value={view.statusCounts.parts} unit="ลำ" detail={`${percent(view.statusCounts.parts / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#ed6b28" icon={<PackageSearch className="size-4" />} /><HeadlineCard label="หยุดใช้งาน (Grounded)" value={view.statusCounts.grounded} unit="ลำ" detail={`${percent(view.statusCounts.grounded / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#d94b65" icon={<ShieldAlert className="size-4" />} /><HeadlineCard label="ไม่ระบุสถานะ" value={view.statusCounts.unknown} unit="ลำ" detail={`${percent(view.statusCounts.unknown / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#64748b" icon={<CircleHelp className="size-4" />} /><HeadlineCard label="Availability Rate" value={availability} unit="%" detail={availabilityDetail} color="#0d9dc7" icon={<Activity className="size-4" />} /></section>
+    <section aria-label="Fleet readiness headline cards" className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-7"><HeadlineCard label="อากาศยานทั้งหมด" value={view.totalAircraft} unit="ลำ" detail="Fleet registry" color="#1675dc" icon={<Plane className="size-4" />} selected={aircraftStatusFilter === "all"} onClick={() => drillDown("all")} /><HeadlineCard label="พร้อมปฏิบัติการ" value={view.statusCounts.ready} unit="ลำ" detail={`${percent(availability)} ของ Fleet ทั้งหมด`} color="#279532" icon={<CheckCircle2 className="size-4" />} selected={aircraftStatusFilter === "ready"} onClick={() => drillDown("ready")} /><HeadlineCard label="อยู่ระหว่างซ่อมบำรุง" value={view.statusCounts.maintenance} unit="ลำ" detail={`${percent(view.statusCounts.maintenance / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#f0b429" icon={<Wrench className="size-4" />} selected={aircraftStatusFilter === "maintenance"} onClick={() => drillDown("maintenance")} /><HeadlineCard label="รออะไหล่" value={view.statusCounts.parts} unit="ลำ" detail={`${percent(view.statusCounts.parts / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#ed6b28" icon={<PackageSearch className="size-4" />} selected={aircraftStatusFilter === "parts"} onClick={() => drillDown("parts")} /><HeadlineCard label="หยุดใช้งาน (Grounded)" value={view.statusCounts.grounded} unit="ลำ" detail={`${percent(view.statusCounts.grounded / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#d94b65" icon={<ShieldAlert className="size-4" />} selected={aircraftStatusFilter === "grounded"} onClick={() => drillDown("grounded")} /><HeadlineCard label="ไม่ระบุสถานะ" value={view.statusCounts.unknown} unit="ลำ" detail={`${percent(view.statusCounts.unknown / view.totalAircraft * 100)} ของ Fleet ทั้งหมด`} color="#64748b" icon={<CircleHelp className="size-4" />} selected={aircraftStatusFilter === "unknown"} onClick={() => drillDown("unknown")} /><HeadlineCard label="Availability Rate" value={availability} unit="%" detail={availabilityDetail} color="#0d9dc7" icon={<Activity className="size-4" />} /></section>
 
-    <section aria-label="Fleet readiness charts" className="mt-3 grid gap-3 xl:grid-cols-12"><Panel title="สถานะความพร้อมใช้งาน" subtitle="สัดส่วนอากาศยานทั้งหมดแยกตามสถานะ" icon={<CircleGauge className="size-4" />} className="xl:col-span-4"><div className="relative"><EChart option={donut} label="Donut chart สถานะความพร้อมใช้งาน" className="h-64" /><div className="pointer-events-none absolute left-[31%] top-1/2 -translate-x-1/2 -translate-y-1/2 text-center"><p className="text-3xl font-bold leading-none text-[#17346b]">{view.totalAircraft}</p><p className="mt-1 text-[10px] text-slate-500">ลำ<br />Total</p></div></div></Panel><Panel title="แนวโน้ม Availability Rate" subtitle="ย้อนหลัง 6 เดือน" icon={<TrendingUp className="size-4" />} className="xl:col-span-4"><EChart option={trend} label="Line chart แนวโน้ม Availability Rate" className="h-64" /></Panel><Panel title="อากาศยานตามสถานะ (แยกประเภท)" subtitle="เปรียบเทียบ Helicopter และ Fixed Wing" icon={<BarChart3 className="size-4" />} className="xl:col-span-4"><EChart option={byType} label="Stacked bar chart อากาศยานตามสถานะและประเภท" className="h-64" /></Panel></section>
+    <section aria-label="Fleet readiness charts" className="mt-3 grid gap-3 xl:grid-cols-12"><Panel title="สถานะความพร้อมใช้งาน" subtitle="สัดส่วนอากาศยานทั้งหมดแยกตามสถานะ" icon={<CircleGauge className="size-4" />} className="xl:col-span-4"><div className="relative"><EChart option={donut} label="Donut chart สถานะความพร้อมใช้งาน" className="h-64" /><div className="pointer-events-none absolute left-[31%] top-1/2 -translate-x-1/2 -translate-y-1/2 text-center"><p className="text-3xl font-bold leading-none text-[#17346b]">{view.totalAircraft}</p><p className="mt-1 text-[10px] text-slate-500">ลำ<br />Total</p></div></div></Panel><Panel title="แนวโน้ม Availability Rate" subtitle={view.usingDemoTrend ? "ย้อนหลัง 6 เดือน · มีข้อมูล DEMO" : "ย้อนหลัง 6 เดือน"} icon={<TrendingUp className="size-4" />} className="xl:col-span-4"><EChart option={trend} label="Line chart แนวโน้ม Availability Rate" className="h-64" /></Panel><Panel title="อากาศยานตามสถานะ (แยกประเภท)" subtitle="เปรียบเทียบ Helicopter และ Fixed Wing" icon={<BarChart3 className="size-4" />} className="xl:col-span-4"><EChart option={byType} label="Stacked bar chart อากาศยานตามสถานะและประเภท" className="h-64" /></Panel></section>
 
-    <section aria-label="Fleet reliability details" className="mt-3 grid items-start gap-3 xl:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)]">
+    <section ref={aircraftTableRef} id="aircraft-status-table" aria-label="Fleet reliability details" className="mt-3 scroll-mt-20 grid items-start gap-3 xl:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)]">
       <Panel title="ตัวชี้วัดสำคัญ" subtitle="Reliability และ flight activity" icon={<Gauge className="size-4" />} className="xl:h-full">
         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-1">{secondaryKpis.map((item) => <SecondaryKpiCard key={item.label} item={item} />)}</div>
       </Panel>
-      <Panel title="สถานะอากาศยานรายลำ" subtitle="กดหัวตารางเพื่อเรียงข้อมูล และเลือกจำนวนรายการต่อหน้าได้" icon={<Plane className="size-4" />} className="min-w-0 xl:h-full">
-        <AircraftTable rows={view.aircraft} />
+      <Panel title="สถานะอากาศยานรายลำ" subtitle="กรองตามสถานะ กดหัวตารางเพื่อเรียงข้อมูล และเลือกจำนวนรายการต่อหน้าได้" icon={<Plane className="size-4" />} className="min-w-0 xl:h-full">
+        <AircraftTable rows={view.aircraft} statusFilter={aircraftStatusFilter} onStatusFilterChange={changeAircraftStatusFilter} page={aircraftPage} onPageChange={setAircraftPage} />
       </Panel>
     </section>
 

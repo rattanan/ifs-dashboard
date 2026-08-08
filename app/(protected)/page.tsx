@@ -70,7 +70,7 @@ export default async function HomePage() {
 
   return <div className="w-full min-w-0 px-3 py-3 sm:px-4 lg:px-5">
     <header className="flex min-w-0 flex-col items-stretch justify-between gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-center">
-      <div className="min-w-0"><h1 className="text-xl font-bold leading-tight text-[#0a2453] sm:text-3xl">TPAD IFSAPP Dashboard Center</h1><p className="text-xs text-slate-500">Oracle IFS Analytics Portal · กองบินตำรวจ</p></div>
+      <div className="min-w-0"><h1 className="text-xl font-bold leading-tight text-[#0a2453] sm:text-3xl"><span className="block">TPAD Aviation Intelligence</span><span className="block">&amp; Command Center (AICC)</span></h1><p className="text-xs text-slate-500">Oracle IFS Analytics Portal · กองบินตำรวจ</p></div>
       <div className="flex w-full min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm sm:w-auto"><RefreshCw className="size-5 shrink-0 text-blue-600"/><div className="min-w-0 flex-1"><p className="truncate text-[11px] font-semibold text-[#17346b]">อัปเดตข้อมูลล่าสุด</p><p className="truncate text-[9px] text-slate-400">{formatDateTime(latestDataAt)}</p></div><span className={`size-2 shrink-0 rounded-full ${dataHasError ? "bg-amber-500" : "bg-emerald-500"}`}/><span className="ml-2 grid size-9 shrink-0 place-items-center rounded-full bg-indigo-600 font-bold text-white">{user.displayName.slice(0, 1)}</span><div className="hidden min-w-0 sm:block"><p className="truncate text-[11px] font-bold text-slate-800">{user.displayName}</p><p className="truncate text-[9px] text-slate-500">{user.role === "ADMIN" ? "Administrator" : "Read only"}</p></div></div>
     </header>
 

@@ -145,7 +145,10 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
       <header className="sticky top-0 z-30 flex h-16 w-full min-w-0 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2.5">
           <PlaneTakeoff className="size-5 text-sky-600" />
-          <span className="font-bold text-slate-900">TPAD Executive</span>
+          <span className="text-[11px] font-bold leading-tight text-slate-900 sm:text-xs">
+            <span className="block">TPAD Aviation Intelligence</span>
+            <span className="block">&amp; Command Center (AICC)</span>
+          </span>
         </div>
         <Dialog.Root>
           <Dialog.Trigger asChild><Button variant="ghost" size="icon" aria-label="เปิดเมนู"><Menu className="size-5" /></Button></Dialog.Trigger>

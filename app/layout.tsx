@@ -3,8 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "TPAD Executive Dashboard",
-    template: "%s | TPAD Dashboard",
+    default: "TPAD Aviation Intelligence & Command Center (AICC)",
+    template: "%s | TPAD AICC",
   },
   description: "ระบบรายงานผู้บริหาร IFS ERP กองบินตำรวจ",
 };

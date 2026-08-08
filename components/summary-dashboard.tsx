@@ -16,7 +16,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import { EChart } from "@/components/echart";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import type { DashboardFilters, DashboardResult, MetricResult } from "@/lib/dashboard/types";
 import { formatDateTime } from "@/lib/utils";
 
@@ -102,7 +101,7 @@ function readinessFrom(rows: Record<string, unknown>[]): Readiness {
   return result;
 }
 
-function budgetOption(projectId: string, estimated: number, actual: number): EChartsOption {
+function budgetOption(estimated: number, actual: number): EChartsOption {
   return {
     animationDuration: 350,
     color: ["#8d3b91", "#1675dc"],
@@ -123,7 +122,7 @@ function budgetOption(projectId: string, estimated: number, actual: number): ECh
     },
     yAxis: {
       type: "category",
-      data: [projectId || "B6800"],
+      data: ["รวมทุกโครงการ"],
       axisLabel: { color: "#17346b", fontWeight: "bold" },
       axisTick: { show: false },
       axisLine: { show: false },
@@ -371,21 +370,20 @@ export function SummaryDashboard({ data, filters, loading, error, onChange, onRe
       </header>
 
       <section aria-label="ตัวกรอง Summary" className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[180px_1fr_auto]">
+        <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
           <label className="text-[11px] font-semibold text-slate-600"><span className="mb-1 block">Site</span><select value={filters.site} onChange={(event) => onChange("site", event.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"><option value="T10">T10</option><option value="T101">T101</option></select></label>
-          <label className="text-[11px] font-semibold text-slate-600"><span className="mb-1 block">Project ID</span><Input value={filters.projectId ?? ""} onChange={(event) => onChange("projectId", event.target.value)} placeholder="B6800" /></label>
-          <div className="flex items-end gap-2"><Button variant="secondary" onClick={onReset} disabled={loading}><RotateCcw className="size-4" /> รีเซ็ต</Button><Button onClick={onRefresh} disabled={loading} className="bg-[#1675dc] hover:bg-blue-700"><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> รีเฟรช</Button></div>
+          <div className="flex items-end justify-start gap-2 sm:justify-end"><Button variant="secondary" onClick={onReset} disabled={loading}><RotateCcw className="size-4" /> รีเซ็ต</Button><Button onClick={onRefresh} disabled={loading} className="bg-[#1675dc] hover:bg-blue-700"><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> รีเฟรช</Button></div>
         </div>
       </section>
 
       {error && <div className="mt-3 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" />{error}</div>}
 
       <section aria-label="ภาพรวมงบประมาณ" className="mt-3 grid gap-3 lg:grid-cols-2 xl:grid-cols-12">
-        <KpiCard title="งบประมาณประจำปี" value={estimated} detail={`วงเงินที่ได้รับอนุมัติสำหรับ Project ${filters.projectId || "B6800"}`} icon={<Banknote className="size-5" />} accent="violet" className="xl:col-span-3" />
+        <KpiCard title="งบประมาณประจำปี" value={estimated} detail="วงเงินที่ได้รับอนุมัติรวมทุกโครงการ" icon={<Banknote className="size-5" />} accent="violet" className="xl:col-span-3" />
         <KpiCard title="งบจ่ายจริงไปแล้ว" value={actual} detail={`เบิกจ่ายแล้ว ${utilization.toFixed(2)}% ของงบประมาณประจำปี`} icon={<ChartNoAxesCombined className="size-5" />} accent="blue" className="xl:col-span-3" />
-        <Panel title="Budget Graph" subtitle={`เปรียบเทียบงบประมาณกับงบจ่ายจริงของโครงการ ${filters.projectId || "B6800"}`} icon={<ChartNoAxesCombined className="size-4" />} className="lg:col-span-2 xl:col-span-6">
+        <Panel title="Budget Graph" subtitle="เปรียบเทียบงบประมาณกับงบจ่ายจริงรวมทุกโครงการ" icon={<ChartNoAxesCombined className="size-4" />} className="lg:col-span-2 xl:col-span-6">
           <MetricWarning metric={budgetMetric} />
-          <EChart option={budgetOption(filters.projectId || "B6800", estimated, actual)} label="กราฟเปรียบเทียบงบประมาณกับงบจ่ายจริง" className="h-56" />
+          <EChart option={budgetOption(estimated, actual)} label="กราฟเปรียบเทียบงบประมาณกับงบจ่ายจริง" className="h-56" />
         </Panel>
       </section>
 

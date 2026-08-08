@@ -34,10 +34,10 @@ const fleetReadiness: MetricDefinition[] = [
     allowedFilters: ["site"],
     kind: "table",
     size: "wide",
-    sql: `SELECT TYPE AS "type", CF$_C_STATUS AS "status", COUNT(*) AS "value"
+    sql: `SELECT TYPE AS "type", CF$_C_STATUS AS "status", CF$_C_CONDITION AS "condition", COUNT(*) AS "value"
       FROM EQUIPMENT_FUNCTIONAL_UIV_CFV
       WHERE MCH_TYPE = 'AIRCRAFT' AND SUP_MCH_CODE <> 'TXX' AND CONTRACT = :site
-      GROUP BY TYPE, CF$_C_STATUS ORDER BY TYPE, COUNT(*) DESC`,
+      GROUP BY TYPE, CF$_C_STATUS, CF$_C_CONDITION ORDER BY TYPE, COUNT(*) DESC`,
   },
   {
     id: "fleet-readiness.availability-trend",
@@ -931,16 +931,15 @@ const summary: MetricDefinition[] = [
     id: "summary.budget",
     dashboard: "summary",
     title: "ภาพรวมงบประมาณ",
-    description: "งบประมาณประจำปีและยอดจ่ายจริงของ Project ID ที่เลือก",
+    description: "งบประมาณประจำปีและยอดจ่ายจริงรวมทุกโครงการสำหรับ DEMO",
     sourceElementId: "41dd09bf-c14d-417a-891f-75fb50754ae2",
     sourceDataSourceId: "8183cea7-3fbe-432d-9477-72daf540c389",
-    allowedFilters: ["projectId"],
+    allowedFilters: [],
     kind: "summary",
     size: "wide",
     sql: `SELECT ROUND(SUM(ESTIMATED), 2) AS "estimated",
         ROUND(SUM(ACTUAL), 2) AS "actual"
-      FROM PROJ_CON_DET_SUM_COST_PROJECT
-      WHERE PROJECT_ID = UPPER(NVL(:projectId, 'B6800'))`,
+      FROM PROJ_CON_DET_SUM_COST_PROJECT`,
   },
   {
     id: "summary.aircraft-readiness",

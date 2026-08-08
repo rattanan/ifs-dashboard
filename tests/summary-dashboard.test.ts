@@ -15,9 +15,10 @@ describe("summary dashboard", () => {
       "summary.pr-status",
     ]);
 
-    expect(metrics.find((metric) => metric.id === "summary.budget")?.sql).toContain(
-      "PROJ_CON_DET_SUM_COST_PROJECT",
-    );
+    const budgetMetric = metrics.find((metric) => metric.id === "summary.budget");
+    expect(budgetMetric?.sql).toContain("PROJ_CON_DET_SUM_COST_PROJECT");
+    expect(budgetMetric?.sql).not.toContain("PROJECT_ID");
+    expect(budgetMetric?.allowedFilters).toEqual([]);
     expect(metrics.find((metric) => metric.id === "summary.aircraft-list")?.sql).toContain(
       "EQUIPMENT_FUNCTIONAL_UIV_CFV",
     );

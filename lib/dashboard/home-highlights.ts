@@ -26,7 +26,7 @@ type HighlightConfig = {
 };
 
 const configs: HighlightConfig[] = [
-  { dashboard: "summary", filters: { site: "T10", projectId: "B6800" }, metricIds: ["summary.budget", "summary.aircraft-readiness"] },
+  { dashboard: "summary", filters: { site: "T10" }, metricIds: ["summary.budget", "summary.aircraft-readiness"] },
   { dashboard: "fleet-readiness", filters: { site: "T10" }, metricIds: ["fleet-readiness.kpis", "fleet-readiness.status-summary"] },
   { dashboard: "maintenance", filters: { site: "T10" }, metricIds: ["maintenance.wo-status", "maintenance.grounded-list"] },
   { dashboard: "budget", filters: { site: "T10" }, metricIds: ["budget.summary", "budget.utilization"] },

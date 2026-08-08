@@ -58,4 +58,12 @@ describe("fleet readiness dashboard", () => {
     expect(sql).toContain("ORDER BY tsn.LAST_VALUE DESC NULLS LAST, a.MCH_CODE");
     expect(sql).not.toContain("FETCH FIRST");
   });
+
+  it("groups the readiness summary by both status and condition", () => {
+    const sql = getMetricsForDashboard("fleet-readiness")
+      .find((metric) => metric.id === "fleet-readiness.status-summary")?.sql;
+
+    expect(sql).toContain('CF$_C_CONDITION AS "condition"');
+    expect(sql).toContain("GROUP BY TYPE, CF$_C_STATUS, CF$_C_CONDITION");
+  });
 });
